@@ -1,0 +1,417 @@
+@import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;500;600;700;800&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --font-display: 'Fredoka One', cursive;
+  --font-body: 'Nunito', sans-serif;
+
+  --color-brand-yellow: #FFD93D;
+  --color-brand-coral: #FF6B6B;
+  --color-brand-sky: #4ECDC4;
+  --color-brand-purple: #C77DFF;
+  --color-brand-green: #6BCB77;
+  --color-brand-orange: #FF9F43;
+  --color-bg: #FFF8F0;
+  --color-card: #FFFFFF;
+  --color-text: #2D2D2D;
+  --color-muted: #8A8A8A;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: #FFF8F0;
+  color: #2D2D2D;
+  margin: 0;
+  background: linear-gradient(135deg, #FFF8F0 0%, #FFFBF5 100%);
+}
+
+button:focus-visible,
+input:focus-visible,
+[data-tv-focusable]:focus-visible {
+  outline: 3px solid #FFD93D;
+  outline-offset: 2px;
+}
+
+[data-tv-focusable]:focus-visible {
+  box-shadow: 0 0 0 4px #FFD93D55;
+}
+
+.show-card-streaming:focus-visible {
+  box-shadow: 0 0 0 3px #FFD93D, 0 8px 24px rgba(255, 217, 61, 0.5);
+  transform: scale(1.08);
+}
+
+@media (min-width: 1280px) {
+  body {
+    font-size: 18px;
+  }
+
+  .catalog-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Hide scrollbar while allowing scroll */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #FFD93D66;
+  border-radius: 99px;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* App backdrop: fixed layer (not background-attachment: fixed, which is janky on TV/mobile browsers). */
+.app-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: #1a1030;
+  background-image:
+    linear-gradient(to bottom, rgba(10, 6, 25, 0.55) 0%, rgba(10, 6, 25, 0.35) 35%, rgba(10, 6, 25, 0.85) 100%),
+    linear-gradient(to right, rgba(10, 6, 25, 0.6) 0%, rgba(10, 6, 25, 0) 60%),
+    url('../files/fundo.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* drop-shadow follows the PNG alpha outline, unlike box-shadow. */
+.logo-glow {
+  filter:
+    drop-shadow(0 0 24px rgba(255, 217, 61, 0.55))
+    drop-shadow(0 18px 30px rgba(0, 0, 0, 0.7));
+}
+
+/* Horizontal TV rows; vertical padding keeps scaled focus cards from being clipped. */
+.tv-row {
+  display: flex;
+  gap: 2rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2.5rem 1.5rem 2rem;
+  margin: 0 -1.5rem;
+  scroll-padding-inline: 2rem;
+  scrollbar-width: none;
+}
+
+.tv-row::-webkit-scrollbar {
+  display: none;
+}
+
+.tv-poster-card,
+.tv-episode-card {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.9rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  outline: none;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.tv-poster-card {
+  width: clamp(200px, 19vw, 340px);
+}
+
+.tv-episode-card {
+  width: 100%;
+  min-width: 0;
+}
+
+.tv-episode-grid {
+  display: grid;
+  width: min(85vw, 100%);
+  margin-inline: auto;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(0.75rem, 2vw, 1.75rem);
+  padding-block: 2.5rem 2rem;
+}
+
+[data-tv-episodes-start] {
+  scroll-margin-top: 5.5rem;
+}
+
+@media (max-width: 767px) {
+  .tv-episode-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 420px) {
+  .tv-episode-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.tv-poster-frame,
+.tv-episode-frame {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  background: rgba(0, 0, 0, 0.35);
+  border: 4px solid transparent;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tv-poster-frame {
+  aspect-ratio: 2 / 3;
+}
+
+.tv-episode-frame {
+  aspect-ratio: 16 / 9;
+}
+
+.tv-poster-title {
+  color: #ffffff;
+  font-size: 1.35rem;
+  font-weight: 800;
+  text-align: center;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+}
+
+.tv-poster-card:hover,
+.tv-poster-card:focus-visible,
+.tv-poster-card:focus,
+.tv-episode-card:hover,
+.tv-episode-card:focus-visible,
+.tv-episode-card:focus {
+  transform: scale(1.08);
+  outline: none;
+  box-shadow: none;
+}
+
+.tv-poster-card:focus .tv-poster-frame,
+.tv-episode-card:focus .tv-episode-frame {
+  border-color: #FFD93D;
+  box-shadow: 0 0 0 4px rgba(255, 217, 61, 0.35), 0 18px 40px rgba(0, 0, 0, 0.6);
+}
+
+.tv-episode-card:focus-visible,
+.tv-episode-card:focus {
+  outline: 3px solid #FFD93D;
+  outline-offset: 5px;
+  border-radius: 1.5rem;
+}
+
+.tv-poster-card:focus .tv-poster-title {
+  opacity: 1;
+  color: #FFD93D;
+}
+
+.tv-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 52px;
+  padding: 0.75rem 1.5rem;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #ffffff;
+  font-size: 1.15rem;
+  font-weight: 800;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.tv-pill:hover,
+.tv-pill:focus {
+  background: #FFD93D;
+  color: #2D2D2D;
+  transform: scale(1.05);
+}
+
+.tv-detail-poster {
+  flex-shrink: 0;
+  width: clamp(140px, 14vw, 240px);
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: 1.25rem;
+  border: 4px solid;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
+}
+
+.favorite-button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #FFD93D;
+  border-radius: 9999px;
+  padding: 0.65rem 1rem;
+  background: #ffffff;
+  color: #2D2D2D;
+  font-weight: 800;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.favorite-button:hover,
+.favorite-button-active {
+  background: #FFD93D;
+  transform: translateY(-1px);
+}
+
+.player-control {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  padding: 0.65rem 0.8rem;
+  color: #ffffff;
+  background: #ffffff1f;
+  font-size: 0.875rem;
+  font-weight: 800;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.player-control:hover {
+  background: #ffffff3d;
+  transform: translateY(-1px);
+}
+
+.player-control-main {
+  min-width: 50px;
+  min-height: 50px;
+  background: #FFD93D;
+  color: #2D2D2D;
+  font-size: 1.1rem;
+}
+
+.player-control-main:hover {
+  background: #FFE66D;
+}
+
+.player-page {
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 100vh;
+  overflow: hidden;
+  background: #000000;
+}
+
+.player-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  background: #000000;
+}
+
+.player-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #000000;
+  object-fit: contain;
+}
+
+/* Show card Netflix-style */
+.show-card-streaming {
+  position: relative;
+  flex-shrink: 0;
+  width: 200px;
+  height: 280px;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.show-card-streaming:hover {
+  transform: scale(1.08);
+  box-shadow: 0 8px 24px rgba(255, 107, 107, 0.4);
+}
+
+.show-card-streaming img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.show-card-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0) 50%);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 1rem;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.show-card-streaming:hover .show-card-overlay {
+  opacity: 1;
+}
+
+.show-card-title {
+  font-weight: 700;
+  font-size: 0.875rem;
+  line-height: 1.2;
+  margin-bottom: 0.5rem;
+  color: white;
+}
+
+.show-card-info {
+  font-size: 0.75rem;
+  color: #999999;
+  margin-bottom: 0.75rem;
+}
+
+.show-card-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #FFD93D;
+  color: #0F0F0F;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.show-card-streaming:hover .show-card-button {
+  background: #FFEA5e;
+  transform: scale(1.1);
+}

@@ -1,0 +1,11 @@
+{
+    "chat.mcp.serverSampling": {
+        "KidsPlay/.vscode/mcp.json: kidsplay-mariadb": {
+            "allowedModels": [
+                "copilotcli/auto",
+                "copilot/auto",
+                "agent-host-copilotcli:claude-opus-5.5"
+            ]
+        }
+    }
+}

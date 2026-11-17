@@ -1,0 +1,35 @@
+{
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "kidsplay-db-user",
+      "description": "Usuário MariaDB com acesso ao kidsplay_db",
+      "password": false
+    },
+    {
+      "type": "promptString",
+      "id": "kidsplay-db-password",
+      "description": "Senha do usuário MariaDB",
+      "password": true
+    }
+  ],
+  "servers": {
+    "kidsplay-mariadb": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@shibbirweb/mcp-mysql-read-only@1.1.6"
+      ],
+      "env": {
+        "MYSQL_HOST": "127.0.0.1",
+        "MYSQL_PORT": "3306",
+        "MYSQL_DATABASE": "kidsplay_db",
+        "MYSQL_USER": "${input:kidsplay-db-user}",
+        "MYSQL_PASSWORD": "${input:kidsplay-db-password}"
+      }
+    }
+  }
+}

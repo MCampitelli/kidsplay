@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "rootDir": ".",
+    "outDir": "build/backend",
+    "allowJs": true,
+    "checkJs": false,
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": [
+    "api/localApi.ts",
+    "api/server.ts",
+    "api/httpServer.ts",
+    "api/catalogAdmin.mjs",
+    "api/passwords.mjs",
+    "api/catalogTags.mjs",
+    "api/requestPolicy.mjs",
+    "config/*.mjs",
+    "video-processing/scripts/*.mjs"
+  ],
+  "exclude": ["**/*.test.mjs"]
+}

@@ -1,0 +1,11 @@
+{
+  "title": "KidsPlay | Streaming para TV",
+  "description": "Streaming infantil KidsPlay, otimizado para navegacao por controle remoto em telas de TV.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

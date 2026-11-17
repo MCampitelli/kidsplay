@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <title>KidsPlay Admin</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./app.js" defer></script>
+  </head>
+  <body>
+    <header class="masthead">
+      <div class="masthead-inner">
+        <a class="brand" href="./index.html" aria-label="KidsPlay Admin">
+          <span class="brand-mark" aria-hidden="true">K</span>
+          <span class="brand-copy"><strong>KidsPlay</strong><small>ADMIN</small></span>
+        </a>
+        <div class="masthead-meta">
+          <button id="logout" class="button button-quiet" type="button">Sair</button>
+          <span id="connection-state" class="connection-state"><i></i><span>Conectando ao backend</span></span>
+          <span id="database-name" class="database-name">KidsPlay API</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="page-shell">
+      <section class="page-heading">
+        <div>
+          <p class="eyebrow">ADMINISTRAÇÃO DE CATÁLOGO</p>
+          <h1>KidsPlay Admin</h1>
+        </div>
+        <button class="button button-quiet" type="button" data-action="refresh" title="Atualizar catálogo">
+          <span aria-hidden="true">↻</span> Atualizar
+        </button>
+      </section>
+
+      <nav class="tabs" aria-label="Seções de configuração">
+        <button class="tab is-active" type="button" data-tab="accounts"><span class="tab-index">01</span>Contas</button>
+        <button class="tab" type="button" data-tab="titles"><span class="tab-index">02</span>Títulos</button>
+        <button class="tab" type="button" data-tab="seasons"><span class="tab-index">03</span>Temporadas</button>
+        <button class="tab" type="button" data-tab="episodes"><span class="tab-index">04</span>Episódios</button>
+        <button class="tab" type="button" data-tab="assets"><span class="tab-index">05</span>Arquivos de mídia</button>
+        <button class="tab" type="button" data-tab="tags"><span class="tab-index">06</span>Tags / Categorias</button>
+      </nav>
+
+      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+      <div id="workspace" class="workspace" aria-live="polite"></div>
+      <footer class="page-footer"><span>KidsPlay Admin</span><span>Backend KidsPlay · acesso autorizado</span></footer>
+    </main>
+  </body>
+</html>

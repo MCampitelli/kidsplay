@@ -1,0 +1,357 @@
+[
+  {
+    "id": 5,
+    "title": "Baby Looney Tunes",
+    "color": "#FF6B6B",
+    "image": "/files/Baby%20Looney%20Tunes/capa.jpg",
+    "episodes": [
+      {
+        "id": 35,
+        "title": "Dados perdidos",
+        "file": "Dados perdidos.mp4",
+        "hls": "/hls/Baby%20Looney%20Tunes/Dados%20perdidos/master.m3u8",
+        "image": "/thumbnails/episodes/5a2b2937ee492f8182de02ded083e11a.jpg"
+      },
+      {
+        "id": 36,
+        "title": "Investigação",
+        "file": "Investigação.mp4",
+        "hls": "/hls/Baby%20Looney%20Tunes/Investiga%C3%A7%C3%A3o/master.m3u8",
+        "image": "/thumbnails/episodes/22fade7e815a30500de6010ea42515cd.jpg"
+      },
+      {
+        "id": 37,
+        "title": "Os seus os meus",
+        "file": "Os seus os meus.mp4",
+        "hls": "/hls/Baby%20Looney%20Tunes/Os%20seus%20os%20meus/master.m3u8",
+        "image": "/thumbnails/episodes/2b6761d2673b830fcd2a1832e30e97a5.jpg"
+      },
+      {
+        "id": 38,
+        "title": "Quem é a vovó",
+        "file": "Quem é a vovó.mp4",
+        "hls": "/hls/Baby%20Looney%20Tunes/Quem%20%C3%A9%20a%20vov%C3%B3/master.m3u8",
+        "image": "/thumbnails/episodes/572a6d96b90f94c07b0754b628c9db1d.jpg"
+      },
+      {
+        "id": 39,
+        "title": "Seja maduro",
+        "file": "Seja maduro.mp4",
+        "hls": "/hls/Baby%20Looney%20Tunes/Seja%20maduro/master.m3u8",
+        "image": "/thumbnails/episodes/6ac6b06777438a91385c9c99ca435c5a.jpg"
+      }
+    ]
+  },
+  {
+    "id": 6,
+    "title": "Bluey",
+    "color": "#FF9F43",
+    "image": "/files/Bluey/capa.jpg",
+    "episodes": []
+  },
+  {
+    "id": 3,
+    "title": "Camundongos Aventureiros",
+    "color": "#FF6B6B",
+    "image": "/files/Camundongos%20Aventureiros/capa.jpg",
+    "episodes": [
+      {
+        "id": 41,
+        "title": "1",
+        "file": "1.mp4",
+        "hls": "/hls/Camundongos%20Aventureiros/1/master.m3u8",
+        "image": "/thumbnails/episodes/17de3182ee32a98dabdc2d1a63f049d4.jpg"
+      },
+      {
+        "id": 49,
+        "title": "10",
+        "file": "10.mp4",
+        "hls": "/hls/Camundongos%20Aventureiros/10/master.m3u8",
+        "image": "/thumbnails/episodes/cfb4d937c8bbeb7ba6d20effc7915c12.jpg"
+      },
+      {
+        "id": 50,
+        "title": "11",
+        "file": "11.mp4",
+        "hls": "/hls/Camundongos%20Aventureiros/11/master.m3u8",
+        "image": "/thumbnails/episodes/acf62e0223d72888704547411bbe660b.jpg"
+      },
+      {
+        "id": 42,
+        "title": "2",
+        "file": "2.mp4",
+        "hls": "/hls/Camundongos%20Aventureiros/2/master.m3u8",
+        "image": "/thumbnails/episodes/bb91581c6b28fcc10e3dc7ce4eca5d33.jpg"
+      },
+      {
+        "id": 43,
+        "title": "3",
+        "file": "3.mp4",
+        "hls": "/hls/Camundongos%20Aventureiros/3/master.m3u8",
+        "image": "/thumbnails/episodes/066b8d5afb1dca631529ab2babb71d27.jpg"
+      },
+      {
+        "id": 44,
+        "title": "4",
+        "file": "4.mp4",
+        "hls": "/hls/Camundongos%20Aventureiros/4/master.m3u8",
+        "image": "/thumbnails/episodes/896543e5076d9c08bba27b4b5fd791f2.jpg"
+      },
+      {
+        "id": 45,
+        "title": "5",
+        "file": "5.mp4",
+        "hls": "/hls/Camundongos%20Aventureiros/5/master.m3u8",
+        "image": "/thumbnails/episodes/4a5032189dbab7aa2f1449a1426675cc.jpg"
+      },
+      {
+        "id": 46,
+        "title": "6",
+        "file": "6.mp4",
+        "hls": "/hls/Camundongos%20Aventureiros/6/master.m3u8",
+        "image": "/thumbnails/episodes/0ae21c52e803a5b13d4cffa8162821a1.jpg"
+      },
+      {
+        "id": 47,
+        "title": "7",
+        "file": "7.mp4",
+        "hls": "/hls/Camundongos%20Aventureiros/7/master.m3u8",
+        "image": "/thumbnails/episodes/d344cd1fb629324e660b34914f91a89c.jpg"
+      },
+      {
+        "id": 48,
+        "title": "9",
+        "file": "9.mp4",
+        "hls": "/hls/Camundongos%20Aventureiros/9/master.m3u8",
+        "image": "/thumbnails/episodes/8b722385753435ca5cef7ef3cf6e8e7a.jpg"
+      }
+    ]
+  },
+  {
+    "id": 7,
+    "title": "Cocoricó",
+    "color": "#C77DFF",
+    "image": "/files/Cocoric%C3%B3/capa.jpg",
+    "episodes": []
+  },
+  {
+    "id": 8,
+    "title": "Cyberchase",
+    "color": "#6BCB77",
+    "image": "/files/Cyberchase/capa.jpg",
+    "episodes": []
+  },
+  {
+    "id": 11,
+    "title": "Detetive Labrador",
+    "color": "#FFD93D",
+    "image": "/files/Detetive%20Labrador/capa.jpg",
+    "episodes": []
+  },
+  {
+    "id": 2,
+    "title": "O Pequeno Urso",
+    "color": "#FF9F43",
+    "image": "/files/O%20Pequeno%20Urso/capa.jpg",
+    "episodes": [
+      {
+        "id": 51,
+        "title": "1",
+        "file": "1.mp4",
+        "hls": "/hls/O%20Pequeno%20Urso/1/master.m3u8",
+        "image": "/thumbnails/episodes/1788adbc64b53c3f48faf47d562bc612.jpg"
+      },
+      {
+        "id": 52,
+        "title": "10",
+        "file": "10.mp4",
+        "hls": "/hls/O%20Pequeno%20Urso/10/master.m3u8",
+        "image": "/thumbnails/episodes/5c5a7263cdbbf3188819555b750ef29f.jpg"
+      },
+      {
+        "id": 53,
+        "title": "2",
+        "file": "2.mp4",
+        "hls": "/hls/O%20Pequeno%20Urso/2/master.m3u8",
+        "image": "/thumbnails/episodes/780f5cb1db2d931bc55c8855d278ca55.jpg"
+      },
+      {
+        "id": 54,
+        "title": "3",
+        "file": "3.mp4",
+        "hls": "/hls/O%20Pequeno%20Urso/3/master.m3u8",
+        "image": "/thumbnails/episodes/eca51045ef006056cf88f33a9761ca74.jpg"
+      },
+      {
+        "id": 55,
+        "title": "4",
+        "file": "4.mp4",
+        "hls": "/hls/O%20Pequeno%20Urso/4/master.m3u8",
+        "image": "/thumbnails/episodes/a175a4eb77b7c0f80495bf602f3fd556.jpg"
+      },
+      {
+        "id": 56,
+        "title": "5",
+        "file": "5.mp4",
+        "hls": "/hls/O%20Pequeno%20Urso/5/master.m3u8",
+        "image": "/thumbnails/episodes/7a561c935ba36415a6fa0e9621353182.jpg"
+      },
+      {
+        "id": 57,
+        "title": "6",
+        "file": "6.mp4",
+        "hls": "/hls/O%20Pequeno%20Urso/6/master.m3u8",
+        "image": "/thumbnails/episodes/6ab2e301da744e50c914b0857410c287.jpg"
+      },
+      {
+        "id": 58,
+        "title": "7",
+        "file": "7.mp4",
+        "hls": "/hls/O%20Pequeno%20Urso/7/master.m3u8",
+        "image": "/thumbnails/episodes/ba5eb1afd11ee453ef4415b56aa4fb10.jpg"
+      },
+      {
+        "id": 59,
+        "title": "8",
+        "file": "8.mp4",
+        "hls": "/hls/O%20Pequeno%20Urso/8/master.m3u8",
+        "image": "/thumbnails/episodes/7ef5e38ffb5a7f189478895345f61c6c.jpg"
+      },
+      {
+        "id": 60,
+        "title": "9",
+        "file": "9.mp4",
+        "hls": "/hls/O%20Pequeno%20Urso/9/master.m3u8",
+        "image": "/thumbnails/episodes/c21d61b131562b06ac7ddd8bb8c0aa8a.jpg"
+      }
+    ]
+  },
+  {
+    "id": 9,
+    "title": "Pingu",
+    "color": "#FF6B6B",
+    "image": "/files/Pingu/capa.jpg",
+    "episodes": []
+  },
+  {
+    "id": 10,
+    "title": "Pink Dink Doo",
+    "color": "#FF9F43",
+    "image": "/files/Pink%20Dink%20Doo/capa.jpg",
+    "episodes": [
+      {
+        "id": 61,
+        "title": "11",
+        "file": "11.mp4",
+        "hls": "/hls/Pink%20Dink%20Doo/11/master.m3u8",
+        "image": "/thumbnails/episodes/7e6a33cca098ac76f3e3d25b11322d0e.jpg"
+      },
+      {
+        "id": 62,
+        "title": "14",
+        "file": "14.mp4",
+        "hls": "/hls/Pink%20Dink%20Doo/14/master.m3u8",
+        "image": "/thumbnails/episodes/6eb5fbd3f46c853708ca92cac6d337da.jpg"
+      },
+      {
+        "id": 63,
+        "title": "6",
+        "file": "6.mp4",
+        "hls": "/hls/Pink%20Dink%20Doo/6/master.m3u8",
+        "image": "/thumbnails/episodes/b0ffce978873149d8b926163a4681376.jpg"
+      },
+      {
+        "id": 64,
+        "title": "8",
+        "file": "8.mp4",
+        "hls": "/hls/Pink%20Dink%20Doo/8/master.m3u8",
+        "image": "/thumbnails/episodes/52ef950b049805055d15578b179966fb.jpg"
+      },
+      {
+        "id": 40,
+        "title": "Cadê os meus sapatos",
+        "file": "Cadê os meus sapatos.mp4",
+        "hls": "/hls/Pink%20Dink%20Doo/Cad%C3%AA%20os%20meus%20sapatos/master.m3u8",
+        "image": "/thumbnails/episodes/b64bcc2c912946c8564cb12e26e3b0fb.jpg"
+      }
+    ]
+  },
+  {
+    "id": 4,
+    "title": "Turma da Monica",
+    "color": "#FF6B6B",
+    "image": "/files/Turma%20da%20Monica/capa.jpg",
+    "episodes": [
+      {
+        "id": 65,
+        "title": "1",
+        "file": "1.mp4",
+        "hls": "/hls/Turma%20da%20Monica/1/master.m3u8",
+        "image": "/thumbnails/episodes/9ca17e266404269a5ee2d8389fb71230.jpg"
+      },
+      {
+        "id": 66,
+        "title": "10",
+        "file": "10.mp4",
+        "hls": "/hls/Turma%20da%20Monica/10/master.m3u8",
+        "image": "/thumbnails/episodes/47074327e897142e50331cf9d93e445a.jpg"
+      },
+      {
+        "id": 67,
+        "title": "2",
+        "file": "2.mp4",
+        "hls": "/hls/Turma%20da%20Monica/2/master.m3u8",
+        "image": "/thumbnails/episodes/c1fbba49708f19aca5e155622563f622.jpg"
+      },
+      {
+        "id": 68,
+        "title": "3",
+        "file": "3.mp4",
+        "hls": "/hls/Turma%20da%20Monica/3/master.m3u8",
+        "image": "/thumbnails/episodes/89b20c23a4ef12fcd923480bcf356a56.jpg"
+      },
+      {
+        "id": 69,
+        "title": "4",
+        "file": "4.mp4",
+        "hls": "/hls/Turma%20da%20Monica/4/master.m3u8",
+        "image": "/thumbnails/episodes/cea41246bdc189868250634364add98c.jpg"
+      },
+      {
+        "id": 70,
+        "title": "5",
+        "file": "5.mp4",
+        "hls": "/hls/Turma%20da%20Monica/5/master.m3u8",
+        "image": "/thumbnails/episodes/fe6d53725e41d7f878b16c9fab410cd6.jpg"
+      },
+      {
+        "id": 71,
+        "title": "6",
+        "file": "6.mp4",
+        "hls": "/hls/Turma%20da%20Monica/6/master.m3u8",
+        "image": "/thumbnails/episodes/725f42cec4661590447d452f2298d179.jpg"
+      },
+      {
+        "id": 72,
+        "title": "7",
+        "file": "7.mp4",
+        "hls": "/hls/Turma%20da%20Monica/7/master.m3u8",
+        "image": "/thumbnails/episodes/1e9962f59093cae074e6b6a28d235cc6.jpg"
+      },
+      {
+        "id": 73,
+        "title": "8",
+        "file": "8.mp4",
+        "hls": "/hls/Turma%20da%20Monica/8/master.m3u8",
+        "image": "/thumbnails/episodes/65ecdd29f772bd9befd5b80ca96447ee.jpg"
+      },
+      {
+        "id": 74,
+        "title": "9",
+        "file": "9.mp4",
+        "hls": "/hls/Turma%20da%20Monica/9/master.m3u8",
+        "image": "/thumbnails/episodes/cef2f47fa6f3094ed7b69a35e849a735.jpg"
+      }
+    ]
+  }
+]
