@@ -162,7 +162,7 @@ input:focus-visible,
 }
 
 [data-tv-episodes-start] {
-  scroll-margin-top: 5.5rem;
+  scroll-margin-top: 1.5rem;
 }
 
 @media (max-width: 767px) {
@@ -256,6 +256,113 @@ input:focus-visible,
   transform: scale(1.05);
 }
 
+.navbar-menu-button {
+  display: inline-flex;
+  width: 48px;
+  height: 48px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.4);
+  color: #ffffff;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.navbar-menu-button:hover,
+.navbar-menu-button:focus-visible,
+.navbar-menu-button[aria-expanded="true"] {
+  background: #FFD93D;
+  color: #2D2D2D;
+}
+
+.navbar-menu {
+  position: absolute;
+  top: calc(100% + 0.6rem);
+  right: 0;
+  display: flex;
+  min-width: 13rem;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.5rem;
+  border-radius: 1.1rem;
+  background: rgba(20, 12, 40, 0.95);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+}
+
+.navbar-menu-item {
+  border-radius: 0.75rem;
+  padding: 0.8rem 1rem;
+  color: #ffffff;
+  font-size: 1.05rem;
+  font-weight: 800;
+  text-align: left;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.navbar-menu-item:hover,
+.navbar-menu-item:focus-visible {
+  background: #FFD93D;
+  color: #2D2D2D;
+}
+
+.navbar-menu-item-danger:hover,
+.navbar-menu-item-danger:focus-visible {
+  background: #FF6B6B;
+  color: #ffffff;
+}
+
+/* Tela do titulo: a arte ocupa o topo (inclusive atras da navbar) e se dissolve no
+   fundo padrao do app via mascara, sem emenda visivel na lista de episodios. */
+.show-hero-art {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  z-index: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
+}
+
+/* Altura do topo: o titulo e as acoes ficam visiveis e so o comeco de "Episodios" aparece. */
+.show-hero {
+  min-height: 82vh;
+  min-height: 82dvh;
+}
+
+.show-hero-watch {
+  display: inline-flex;
+  min-height: 52px;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  padding: 0.75rem 2rem;
+  background: #ffffff;
+  color: #1a1030;
+  font-size: 1.1rem;
+  font-weight: 800;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.show-hero-watch:hover,
+.show-hero-watch:focus-visible {
+  background: #FFD93D;
+  transform: scale(1.05);
+}
+
+.favorite-button:focus-visible {
+  transform: scale(1.05);
+}
+
+.show-hero .favorite-button {
+  min-height: 52px;
+  padding: 0.75rem 1.5rem;
+  font-size: 1.1rem;
+}
+
 .tv-detail-poster {
   flex-shrink: 0;
   width: clamp(140px, 14vw, 240px);
@@ -316,6 +423,47 @@ input:focus-visible,
 
 .player-control-main:hover {
   background: #FFE66D;
+}
+
+.player-control:disabled {
+  opacity: 0.35;
+  cursor: default;
+  transform: none;
+}
+
+/* Botoes so com icone: sem fundo, para a barra ficar limpa; o fundo aparece no foco/hover. */
+.player-icon-button {
+  padding: 0.55rem;
+  background: transparent;
+}
+
+.player-icon-button:hover:not(:disabled),
+.player-icon-button:focus-visible {
+  background: #ffffff2e;
+}
+
+.player-progress {
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 9999px;
+  outline-offset: 6px;
+}
+
+.player-progress::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: #FFD93D;
+  box-shadow: 0 0 0 4px #00000040;
+}
+
+.player-progress::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 9999px;
+  background: #FFD93D;
 }
 
 .player-page {

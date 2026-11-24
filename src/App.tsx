@@ -160,7 +160,6 @@ export default function App() {
         onEpisodeChange={(episode) =>
           setSelectedEpisode({ show: selectedEpisode.show, episode })
         }
-        currentUser={currentUser}
       />
     )
   }

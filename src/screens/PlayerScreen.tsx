@@ -1,8 +1,21 @@
 import { useEffect, useRef, useState } from "react"
 import type Hls from "hls.js"
-import type { Profile } from "../types/profile"
 import type { Episode, Show } from "../types/catalog"
 import { getNextTvTarget } from "../lib/tvNavigation"
+import {
+  BackIcon,
+  ExitFullscreenIcon,
+  FullscreenIcon,
+  NextIcon,
+  PauseIcon,
+  PlayIcon,
+  PreviousIcon,
+} from "../components/PlayerIcons"
+
+// O aviso de proximo episodio aparece so nos ultimos segundos, num canto da tela, e
+// segue automaticamente se ninguem responder. Recusar volta para a lista de episodios.
+const NEXT_EPISODE_THRESHOLD_SECONDS = 4
+const AUTO_NEXT_SECONDS = 10
 
 function formatTime(time: number) {
   if (!Number.isFinite(time) || time < 0) return "00:00"
@@ -23,7 +36,6 @@ export function PlayerScreen({
   hlsSrc,
   onBack,
   onEpisodeChange,
-  currentUser,
 }: {
   show: Show
   episode: Episode
@@ -31,11 +43,12 @@ export function PlayerScreen({
   hlsSrc?: string
   onBack: () => void
   onEpisodeChange: (episode: Episode) => void
-  currentUser: Profile
 }) {
   const playerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const playPauseButtonRef = useRef<HTMLButtonElement>(null)
+  const playNextButtonRef = useRef<HTMLButtonElement>(null)
+  const progressRef = useRef<HTMLInputElement>(null)
   const hideControlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   )
@@ -52,7 +65,6 @@ export function PlayerScreen({
     hlsSrc ? "hls" : "mp4",
   )
   const [isMuted, setIsMuted] = useState(false)
-  const [volume, setVolume] = useState(1)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [bufferedPercent, setBufferedPercent] = useState(0)
@@ -152,9 +164,9 @@ export function PlayerScreen({
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
-    video.volume = volume
+    // O volume fica a cargo do controle da TV; no app so existe o atalho M (mudo).
     video.muted = isMuted
-  }, [isMuted, volume])
+  }, [isMuted])
 
   useEffect(() => {
     setCurrentTime(0)
@@ -320,6 +332,13 @@ export function PlayerScreen({
     return () => clearTimeout(timer)
   }, [nextEpisode, nextEpisodeCountdown])
 
+  // Quando o aviso de proximo episodio surge, o foco vai para "Assistir agora" para
+  // que o OK do controle remoto responda direto.
+  const isNextEpisodePromptVisible = nextEpisodeCountdown !== null && Boolean(nextEpisode)
+  useEffect(() => {
+    if (isNextEpisodePromptVisible) playNextButtonRef.current?.focus({ preventScroll: true })
+  }, [isNextEpisodePromptVisible])
+
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(Boolean(document.fullscreenElement))
@@ -381,6 +400,31 @@ export function PlayerScreen({
           ArrowDown: "down",
         } as const
         const activeElement = document.activeElement
+        const player = playerRef.current
+        const focusIsOnControl =
+          activeElement instanceof HTMLElement &&
+          activeElement !== player &&
+          Boolean(player?.contains(activeElement))
+        const isHorizontal = event.key === "ArrowLeft" || event.key === "ArrowRight"
+
+        // Padrao das plataformas de streaming: com os controles escondidos (ou com a barra
+        // de progresso selecionada), esquerda/direita voltam/avancam 10s e mostram a barra.
+        // Com um botao selecionado, as setas continuam navegando entre os botoes.
+        if (
+          isHorizontal &&
+          !isNextEpisodePromptVisible &&
+          (!controlsVisible || !focusIsOnControl || activeElement === progressRef.current)
+        ) {
+          seekBy(event.key === "ArrowLeft" ? -10 : 10)
+          progressRef.current?.focus({ preventScroll: true })
+          return
+        }
+        // Cima/baixo com os controles escondidos apenas os revelam, a partir do Play.
+        if (!isHorizontal && (!controlsVisible || !focusIsOnControl) && !isNextEpisodePromptVisible) {
+          revealControls()
+          playPauseButtonRef.current?.focus({ preventScroll: true })
+          return
+        }
         if (activeElement instanceof HTMLElement) {
           const nextTarget = getNextTvTarget(
             activeElement,
@@ -431,7 +475,7 @@ export function PlayerScreen({
         onTouchStart={revealControls}
       >
         <div
-          className={`absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-4 bg-gradient-to-b from-black/85 to-transparent p-4 sm:p-7 transition-opacity duration-300 ${
+          className={`absolute inset-x-0 top-0 z-20 flex items-center gap-3 bg-gradient-to-b from-black/80 to-transparent px-4 pb-10 pt-4 sm:gap-4 sm:px-8 sm:pt-6 transition-opacity duration-300 ${
             controlsVisible || !isPlaying
               ? "opacity-100"
               : "pointer-events-none opacity-0"
@@ -440,24 +484,18 @@ export function PlayerScreen({
           <button
             type="button"
             onClick={onBack}
-            className="player-control"
+            className="player-control player-icon-button"
+            aria-label="Voltar aos episódios"
+            title="Voltar aos episódios"
             data-tv-focusable
           >
-            ← Voltar
+            <BackIcon className="h-6 w-6" />
           </button>
-          <div className="flex items-center gap-3 text-right text-white">
-            <img
-              src="/logo_kids_play.png"
-              alt="KidsPlay"
-              className="h-8 w-auto sm:h-10"
-            />
-            <div className="hidden sm:block">
-              <p className="text-sm font-bold text-[#FFD93D]">{show.title}</p>
-              <h1 className="font-display text-xl">{episode.title}</h1>
-              <p className="text-xs font-bold text-white/75">
-                {currentUser.name}
-              </p>
-            </div>
+          <div className="min-w-0 text-white">
+            <p className="truncate text-xs font-bold uppercase tracking-wide text-[#FFD93D] sm:text-sm">
+              {show.title}
+            </p>
+            <h1 className="truncate font-display text-lg sm:text-2xl">{episode.title}</h1>
           </div>
         </div>
 
@@ -493,13 +531,21 @@ export function PlayerScreen({
           onTimeUpdate={(event) => {
             const video = event.currentTarget
             setCurrentTime(video.currentTime)
+            const remaining = video.duration - video.currentTime
             if (
               nextEpisode &&
               !autoNextCancelledRef.current &&
               nextEpisodeCountdown === null &&
-              video.duration - video.currentTime <= 12
+              remaining <= NEXT_EPISODE_THRESHOLD_SECONDS
             ) {
-              setNextEpisodeCountdown(10)
+              setNextEpisodeCountdown(AUTO_NEXT_SECONDS)
+            } else if (
+              nextEpisodeCountdown !== null &&
+              !video.ended &&
+              remaining > NEXT_EPISODE_THRESHOLD_SECONDS + 1
+            ) {
+              // Voltou a barra de progresso: o episodio nao esta mais acabando.
+              setNextEpisodeCountdown(null)
             }
           }}
           onProgress={(event) => {
@@ -516,13 +562,13 @@ export function PlayerScreen({
           onPlaying={() => setIsLoading(false)}
           onEnded={() => {
             setIsPlaying(false)
-            setControlsVisible(true)
-            if (
-              nextEpisode &&
-              !autoNextCancelledRef.current &&
-              nextEpisodeCountdown === null
-            ) {
-              setNextEpisodeCountdown(10)
+            // Ultimo episodio (ou proximo recusado): volta para a lista de episodios.
+            if (!nextEpisode || autoNextCancelledRef.current) {
+              onBack()
+              return
+            }
+            if (nextEpisodeCountdown === null) {
+              setNextEpisodeCountdown(AUTO_NEXT_SECONDS)
             }
           }}
           onError={(event) => {
@@ -583,38 +629,67 @@ export function PlayerScreen({
           </div>
         )}
 
-        {nextEpisodeCountdown !== null && nextEpisode && (
-          <div className="absolute inset-x-0 bottom-32 z-20 flex justify-center px-4 sm:bottom-40">
-            <div className="flex max-w-xl flex-wrap items-center justify-center gap-3 rounded-2xl bg-black/80 px-5 py-4 text-center text-white shadow-xl backdrop-blur-sm">
-              <p className="text-sm font-semibold sm:text-base">
-                Próximo episódio em {nextEpisodeCountdown}s: {nextEpisode.title}
-              </p>
+        {isNextEpisodePromptVisible && nextEpisode && (
+          <div
+            className="absolute bottom-4 right-4 z-30 w-[min(calc(100%-2rem),24rem)] overflow-hidden rounded-2xl bg-black/85 text-white shadow-2xl ring-1 ring-white/10 backdrop-blur-md sm:bottom-8 sm:right-8"
+            role="status"
+            aria-live="polite"
+          >
+            <div className="flex gap-3 p-3">
+              {nextEpisode.image && (
+                <img
+                  src={nextEpisode.image}
+                  alt=""
+                  aria-hidden="true"
+                  draggable={false}
+                  className="aspect-video w-28 shrink-0 rounded-lg object-cover"
+                />
+              )}
+              <div className="min-w-0 self-center">
+                <p className="text-xs font-bold uppercase tracking-wide text-[#FFD93D]">
+                  Próximo em {nextEpisodeCountdown}s
+                </p>
+                <p className="line-clamp-2 text-sm font-bold sm:text-base">{nextEpisode.title}</p>
+              </div>
+            </div>
+            <div className="flex gap-2 px-3 pb-3">
               <button
+                ref={playNextButtonRef}
                 type="button"
                 onClick={() => changeEpisode(nextEpisode)}
-                className="player-control player-control-main"
+                className="player-control player-control-main flex-1 gap-2 text-sm"
                 data-tv-focusable
               >
-                Reproduzir agora
+                <PlayIcon className="h-4 w-4" />
+                Assistir agora
               </button>
               <button
                 type="button"
                 onClick={() => {
                   autoNextCancelledRef.current = true
                   setNextEpisodeCountdown(null)
+                  onBack()
                 }}
-                className="player-control"
+                className="player-control flex-1 text-sm"
                 data-tv-focusable
               >
-                Cancelar
+                Voltar aos episódios
               </button>
+            </div>
+            <div className="h-1 bg-white/15" aria-hidden="true">
+              <div
+                className="h-full bg-[#FFD93D] transition-[width] duration-1000 ease-linear"
+                style={{
+                  width: `${((AUTO_NEXT_SECONDS - (nextEpisodeCountdown ?? AUTO_NEXT_SECONDS)) / AUTO_NEXT_SECONDS) * 100}%`,
+                }}
+              />
             </div>
           </div>
         )}
 
         <div
-          className={`absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/75 to-transparent px-3 pb-3 pt-16 transition-opacity duration-300 sm:px-6 sm:pb-5 ${
-            controlsVisible || !isPlaying
+          className={`absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent px-4 pb-4 pt-16 transition-opacity duration-300 sm:px-8 sm:pb-6 ${
+            (controlsVisible || !isPlaying) && !isNextEpisodePromptVisible
               ? "opacity-100"
               : "pointer-events-none opacity-0"
           }`}
@@ -628,64 +703,58 @@ export function PlayerScreen({
           }}
         >
           <input
+            ref={progressRef}
             type="range"
             min="0"
             max={duration || 0}
             step="0.1"
             value={Math.min(currentTime, duration || 0)}
-            aria-label="Progresso do episódio"
+            aria-label="Progresso do episódio (setas esquerda e direita voltam ou avançam 10 segundos)"
+            data-tv-focusable
             onChange={(event) => {
               const nextTime = Number(event.target.value)
               setCurrentTime(nextTime)
               if (videoRef.current) videoRef.current.currentTime = nextTime
               revealControls()
             }}
-            className="h-2 w-full cursor-pointer accent-[#FFD93D]"
+            className="player-progress h-1.5 w-full cursor-pointer"
             style={{
               background: `linear-gradient(to right, #FFD93D ${
                 duration ? (currentTime / duration) * 100 : 0
-              }%, #ffffff55 ${
+              }%, #ffffff66 ${
                 duration ? (currentTime / duration) * 100 : 0
-              }%, #ffffff55 ${bufferedPercent}%, #ffffff33 ${bufferedPercent}%)`,
+              }%, #ffffff66 ${bufferedPercent}%, #ffffff26 ${bufferedPercent}%)`,
             }}
           />
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-white sm:gap-3">
+          <div className="mt-3 flex items-center gap-1 text-white sm:gap-2">
+            <button
+              ref={playPauseButtonRef}
+              type="button"
+              onClick={togglePlay}
+              className="player-control player-control-main"
+              aria-label={isPlaying ? "Pausar" : "Reproduzir"}
+              title={isPlaying ? "Pausar" : "Reproduzir"}
+              data-tv-focusable
+            >
+              {isPlaying ? <PauseIcon className="h-6 w-6" /> : <PlayIcon className="h-6 w-6" />}
+            </button>
+            <span className="ml-1 text-xs font-semibold tabular-nums text-white/90 sm:ml-2 sm:text-sm">
+              {formatTime(currentTime)}
+              <span className="text-white/50"> / {formatTime(duration)}</span>
+            </span>
             <button
               type="button"
               onClick={() => {
                 if (previousEpisode) changeEpisode(previousEpisode)
                 revealControls()
               }}
-              className="player-control"
+              className="player-control player-icon-button ml-auto"
               disabled={!previousEpisode}
+              aria-label="Episódio anterior"
+              title="Episódio anterior"
               data-tv-focusable
             >
-              ⏮ Anterior
-            </button>
-            <button
-              type="button"
-              onClick={() => seekBy(-10)}
-              className="player-control"
-              data-tv-focusable
-            >
-              ↶ 10s
-            </button>
-            <button
-              ref={playPauseButtonRef}
-              type="button"
-              onClick={togglePlay}
-              className="player-control player-control-main"
-              data-tv-focusable
-            >
-              {isPlaying ? "❚❚" : "▶"}
-            </button>
-            <button
-              type="button"
-              onClick={() => seekBy(10)}
-              className="player-control"
-              data-tv-focusable
-            >
-              10s ↷
+              <PreviousIcon />
             </button>
             <button
               type="button"
@@ -693,45 +762,23 @@ export function PlayerScreen({
                 if (nextEpisode) changeEpisode(nextEpisode)
                 revealControls()
               }}
-              className="player-control"
+              className="player-control player-icon-button"
               disabled={!nextEpisode}
+              aria-label="Próximo episódio"
+              title="Próximo episódio"
               data-tv-focusable
             >
-              Próximo ⏭
+              <NextIcon />
             </button>
-            <span className="text-xs font-semibold tabular-nums sm:text-sm">
-              {formatTime(currentTime)} / {formatTime(duration)}
-            </span>
-            <button
-              type="button"
-              onClick={toggleMute}
-              className="player-control ml-auto"
-              data-tv-focusable
-            >
-              {isMuted || volume === 0 ? "🔇" : "🔊"}
-            </button>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={isMuted ? 0 : volume}
-              aria-label="Volume"
-              onChange={(event) => {
-                const nextVolume = Number(event.target.value)
-                setVolume(nextVolume)
-                setIsMuted(nextVolume === 0)
-                revealControls()
-              }}
-              className="w-20 accent-[#FFD93D] sm:w-28"
-            />
             <button
               type="button"
               onClick={() => void toggleFullscreen()}
-              className="player-control"
+              className="player-control player-icon-button"
+              aria-label={isFullscreen ? "Sair da tela cheia" : "Tela cheia"}
+              title={isFullscreen ? "Sair da tela cheia" : "Tela cheia"}
               data-tv-focusable
             >
-              {isFullscreen ? "⛶" : "⛶"}
+              {isFullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
             </button>
           </div>
         </div>

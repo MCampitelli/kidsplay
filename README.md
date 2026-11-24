@@ -5,7 +5,7 @@ Aplicação de streaming infantil otimizada para navegação em TV.
 ## 🚀 Recursos
 
 - **Login local**: autenticação do responsável pela API MariaDB e seleção de perfil infantil
-- **Interface Limpa**: Navbar com logo, nome do perfil, **Trocar perfil** e **Sair**
+- **Interface Limpa**: Navbar (rola com a página) com logo, nome do perfil e menu ☰ com **Trocar perfil** e **Sair**
 - **Fileiras por categoria**: a tela inicial mostra uma fileira de capas por tag ativa, seguida da fileira **Desenhos** com todos os títulos publicados
 - **Tela do desenho**: capa, descrição, botão de favoritar e grade de episódios
 - **Player para TV**: HLS com fallback para MP4, próximo episódio automático e controles que somem durante a reprodução
@@ -56,7 +56,10 @@ public/data/profiles.json  # origem dos perfis para o primeiro seed
 
 ### Player
 - **Espaço/Enter**: Reproduzir ou pausar (com os controles ocultos, o primeiro Enter só os exibe)
+- **← / →**: Voltar ou avançar 10 segundos (com os controles ocultos ou a barra de progresso selecionada; segurar repete). Com um botão selecionado, as setas navegam entre os botões
+- **↑ / ↓**: Com os controles ocultos, exibem os controles a partir do Play
 - **M**: Mudo · **F**: Tela cheia · **Esc/Voltar**: Sair do player
+- **Fim do episódio**: nos últimos 4 segundos aparece, no canto, o aviso do próximo episódio, que começa sozinho em 10 segundos. "Voltar aos episódios" (ou o fim do último episódio) retorna à lista
 
 ## 📝 Arquivos de Dados
 
