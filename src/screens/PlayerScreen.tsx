@@ -226,6 +226,15 @@ export function PlayerScreen({
 
     if (sourceMode !== "hls" || !hlsSrc) {
       activeEngineRef.current = "mp4"
+      // Com a midia no storage nao ha MP4 de reserva; sem fonte, mostra o erro em vez de
+      // carregar a URL da propria pagina.
+      if (!videoSrc) {
+        video.removeAttribute("src")
+        setError(true)
+        return () => {
+          cancelled = true
+        }
+      }
       video.src = videoSrc
       video.load()
       return () => {

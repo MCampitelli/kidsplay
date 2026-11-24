@@ -159,6 +159,15 @@ function parseProfileId(pathname: string): number | null {
 
 export function createApi(config: ApiConfig, pool: Pool) {
 
+  // Com KIDSPLAY_MEDIA_BASE_URL, as rotas locais viram URLs do storage (R2). Os MP4 originais
+  // nao sao enviados ao storage, entao deixam de ser oferecidos e o player usa somente HLS.
+  function mediaUrl(value: string | null): string | undefined {
+    const local = publicCatalogAsset(value)
+    if (!local || !config.mediaBaseUrl || /^https?:\/\//i.test(local)) return local
+    if (/^\/files\/.*\.mp4$/i.test(local)) return undefined
+    return `${config.mediaBaseUrl}${local}`
+  }
+
   async function loadPlaybackCatalog() {
     if (!pool) throw new Error('MariaDB não está configurado.')
     const rows = (await pool.query(
@@ -169,8 +178,8 @@ export function createApi(config: ApiConfig, pool: Pool) {
          e.id AS episode_id, e.episode_number, e.name AS episode_name, e.thumbnail_path,
          m.id AS asset_id, m.asset_format, m.quality, m.asset_path, m.is_available
        FROM titles t
-       LEFT JOIN seasons s ON s.title_id = t.id
-       LEFT JOIN episodes e ON e.season_id = s.id
+       LEFT JOIN seasons s ON s.title_id = t.id AND s.publication_status = 'published'
+       LEFT JOIN episodes e ON e.season_id = s.id AND e.publication_status = 'published'
        LEFT JOIN media_assets m ON m.episode_id = e.id
        WHERE t.publication_status = 'published'
        ORDER BY t.display_order, t.name, t.id, s.season_number, e.episode_number, m.asset_format, m.quality`,
@@ -200,8 +209,8 @@ export function createApi(config: ApiConfig, pool: Pool) {
           title: row.title_name,
           description: row.title_description,
           color: SHOW_COLORS[(titleId - 1) % SHOW_COLORS.length],
-          image: publicCatalogAsset(row.cover_path) || publicCatalogAsset(row.poster_path) || publicCatalogAsset(row.banner_path),
-          banner: publicCatalogAsset(row.banner_path),
+          image: mediaUrl(row.cover_path) || mediaUrl(row.poster_path) || mediaUrl(row.banner_path),
+          banner: mediaUrl(row.banner_path),
           tags: [],
           episodes: [],
         }
@@ -219,7 +228,7 @@ export function createApi(config: ApiConfig, pool: Pool) {
           id: Number(row.episode_id),
           title: row.episode_name || `Episódio ${row.episode_number}`,
           file: '',
-          image: publicCatalogAsset(row.thumbnail_path) || title.image,
+          image: mediaUrl(row.thumbnail_path) || title.image,
         }
         episodes.set(episodeKey, episode)
         title.episodes.push(episode)
@@ -229,11 +238,11 @@ export function createApi(config: ApiConfig, pool: Pool) {
       if (row.asset_format === 'mp4') {
         const rank = row.quality === 'source' ? 1 : 0
         if (rank > (mp4Ranks.get(episodeKey) ?? -1)) {
-          episode.file = publicCatalogAsset(row.asset_path) || ''
+          episode.file = mediaUrl(row.asset_path) || ''
           mp4Ranks.set(episodeKey, rank)
         }
       } else if (row.asset_format === 'hls' && row.quality === 'master') {
-        episode.hls = publicCatalogAsset(row.asset_path)
+        episode.hls = mediaUrl(row.asset_path)
       }
     }
 

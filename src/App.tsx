@@ -15,7 +15,8 @@ import { useFavoriteShows } from "./hooks/useFavoriteShows"
 import { useTvRemoteNavigation } from "./hooks/useTvRemoteNavigation"
 
 function getEpisodeVideoSrc(show: Show, episode: Episode) {
-  if (episode.file.startsWith("/")) return episode.file
+  if (!episode.file) return ""
+  if (episode.file.startsWith("/") || /^https?:\/\//i.test(episode.file)) return episode.file
   return `/files/${show.title}/${episode.file}`
 }
 
@@ -90,10 +91,17 @@ export default function App() {
 
     void loadCatalog()
     void restoreSession()
-    const catalogRefreshTimer = window.setInterval(() => void loadCatalog(), 5000)
+    // 60s keeps a small production server comfortable with many TVs open;
+    // returning to the tab/app also refreshes immediately.
+    const catalogRefreshTimer = window.setInterval(() => void loadCatalog(), 60_000)
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void loadCatalog()
+    }
+    document.addEventListener("visibilitychange", refreshWhenVisible)
     return () => {
       cancelled = true
       clearInterval(catalogRefreshTimer)
+      document.removeEventListener("visibilitychange", refreshWhenVisible)
     }
   }, [])
 

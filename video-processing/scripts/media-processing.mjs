@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { generateShows } from '../../scripts/generate-shows.mjs'
-import { encodeEpisode, metadataPathForSource, writeEncodingMetadata } from './encode-videos.mjs'
+import { ENCODER_VERSION, encodeEpisode, metadataPathForSource, writeEncodingMetadata } from './encode-videos.mjs'
 import { promoteHlsOutput, recoverHlsOutput, validateHls } from './hls-validation.mjs'
 
 const activeStatuses = new Set(['thumbnail', 'verifying-hls', 'converting-hls', 'validating-hls'])
@@ -173,7 +173,9 @@ async function registeredHlsMatchesSource(masterPath, canonicalMaster, sourcePat
       return path.resolve(masterPath) === path.resolve(canonicalMaster) && metadata.status !== 'completed'
     }
     return metadata.status !== 'completed'
-      || (metadata.sourceSize === sourceStats.size && metadata.sourceModifiedAt === sourceStats.mtime.toISOString())
+      || (metadata.sourceSize === sourceStats.size
+        && metadata.sourceModifiedAt === sourceStats.mtime.toISOString()
+        && metadata.encoderVersion === ENCODER_VERSION)
   } catch {
     return path.resolve(masterPath) === path.resolve(canonicalMaster)
   }

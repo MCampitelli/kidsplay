@@ -55,6 +55,7 @@ export function readConfig(env = loadEnvironment()) {
     throw new Error('Produção exige KIDSPLAY_ALLOWED_ORIGINS com origens HTTPS explícitas.')
   }
   const apiTarget = readApiTarget(env)
+  const mediaBaseUrl = readMediaBaseUrl(env)
   const database = env.KIDSPLAY_DB_NAME?.trim() || 'kidsplay_db'
   const host = env.KIDSPLAY_DB_HOST?.trim() || '127.0.0.1'
   const ssl = flag(env.KIDSPLAY_DB_SSL, false, 'KIDSPLAY_DB_SSL')
@@ -73,5 +74,18 @@ export function readConfig(env = loadEnvironment()) {
     },
     adminPort: port(env.KIDSPLAY_CATALOG_ADMIN_PORT, 8787, 'KIDSPLAY_CATALOG_ADMIN_PORT'),
     apiTarget,
+    mediaBaseUrl,
   }
+}
+
+// Origem publica das midias (ex.: URL r2.dev). Vazio = servir /hls, /thumbnails e /files localmente.
+export function readMediaBaseUrl(env) {
+  const value = env.KIDSPLAY_MEDIA_BASE_URL?.trim()
+  if (!value) return undefined
+  let url
+  try { url = new URL(value) } catch { throw new Error('KIDSPLAY_MEDIA_BASE_URL deve ser uma URL HTTPS válida.') }
+  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) {
+    throw new Error('KIDSPLAY_MEDIA_BASE_URL deve ser uma URL HTTPS sem credenciais, query ou fragmento.')
+  }
+  return url.href.replace(/\/+$/, '')
 }

@@ -3,7 +3,7 @@ import test from 'node:test'
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { loadEnvironment, readConfig, readApiTarget } from './environment.mjs'
+import { loadEnvironment, readConfig, readApiTarget, readMediaBaseUrl } from './environment.mjs'
 
 const valid = { KIDSPLAY_ENV: 'development', KIDSPLAY_DB_USER: 'fixture', KIDSPLAY_DB_PASSWORD: '' }
 
@@ -45,4 +45,14 @@ test('ambientes têm precedência e não modificam process.env', () => {
     assert.equal(process.env[key], before)
     assert.equal(process.env.KIDSPLAY_CONFIG_TEST_BASE, undefined)
   } finally { rmSync(root, { recursive: true }) }
+})
+
+test('KIDSPLAY_MEDIA_BASE_URL aceita somente HTTPS e remove barra final', () => {
+  assert.equal(readMediaBaseUrl({}), undefined)
+  assert.equal(readMediaBaseUrl({ KIDSPLAY_MEDIA_BASE_URL: ' ' }), undefined)
+  assert.equal(readMediaBaseUrl({ KIDSPLAY_MEDIA_BASE_URL: 'https://pub-abc.r2.dev/' }), 'https://pub-abc.r2.dev')
+  assert.equal(readConfig({ ...valid, KIDSPLAY_MEDIA_BASE_URL: 'https://pub-abc.r2.dev' }).mediaBaseUrl, 'https://pub-abc.r2.dev')
+  assert.throws(() => readMediaBaseUrl({ KIDSPLAY_MEDIA_BASE_URL: 'http://pub-abc.r2.dev' }))
+  assert.throws(() => readMediaBaseUrl({ KIDSPLAY_MEDIA_BASE_URL: 'https://user:pw@pub-abc.r2.dev' }))
+  assert.throws(() => readMediaBaseUrl({ KIDSPLAY_MEDIA_BASE_URL: 'nao-e-url' }))
 })

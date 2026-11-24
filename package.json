@@ -22,6 +22,8 @@
     "api:start": "node build/backend/api/server.js",
     "db:migrate": "node scripts/migrate.mjs",
     "admin:role": "node scripts/admin-role.mjs",
+    "admin:create": "node scripts/create-admin.mjs",
+    "media:upload": "node scripts/upload-media-r2.mjs",
     "test": "node --test config/environment.test.mjs api/requestPolicy.test.mjs api/catalogTags.test.mjs video-processing/scripts/media-processing.test.mjs",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.backend.json --noEmit",
     "test:api:integration": "pnpm build:api && node --test api/backend.integration.test.mjs",
@@ -38,6 +40,7 @@
     "format": "oxfmt"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1172.0",
     "hls.js": "^1.7.3",
     "mariadb": "^3.5.4",
     "react": "^19.0.0",
@@ -75,7 +78,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "artifactName": "KidsPlay-Admin-${version}-Setup.${ext}"

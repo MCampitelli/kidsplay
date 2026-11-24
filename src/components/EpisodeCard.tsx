@@ -17,7 +17,7 @@ export function EpisodeCard({
   buttonRef: (element: HTMLButtonElement | null) => void
 }) {
   const image = episode.image ?? fallbackImage
-  const hasVideo = Boolean(episode.file)
+  const hasVideo = Boolean(episode.file || episode.hls)
   return (
     <button
       ref={buttonRef}

@@ -73,11 +73,14 @@ Essas pastas sao ignoradas pelo Git. A estrutura e adequada para um upload futur
 
 ## Qualidades
 
-- `480p`: somente se a origem tiver pelo menos 854x480;
-- `720p`: somente se a origem tiver pelo menos 1280x720;
-- `1080p`: somente se a origem tiver pelo menos 1920x1080.
+- `480p`: somente se a origem tiver pelo menos 854x480 (teto de 1200 kbps);
+- `720p`: somente se a origem tiver pelo menos 1280x720 (teto de 2500 kbps).
 
 Para uma origem menor que 480p, a pipeline gera uma qualidade com a dimensao original, sem upscale artificial.
+
+O video usa x264 `-preset medium -tune animation` com CRF 20 (qualidade constante). O bitrate maximo de cada qualidade e o menor valor entre o teto acima e 1,5x o bitrate de video da origem, reduzido pela proporcao de pixels entre a qualidade e a origem elevada a 0,75 (minimo de 400 kbps). Assim nenhum HLS fica muito maior que o MP4 original e o 480p de uma origem 720p custa cerca de metade do 720p, em vez de quase o mesmo. O 1080p esta desativado por enquanto para reduzir armazenamento e consumo de dados; para reativar, adicione o perfil em `profiles` de `encode-videos.mjs` e incremente `ENCODER_VERSION`.
+
+`ENCODER_VERSION` e gravado no metadata de cada episodio. Ao alterar as configuracoes de codificacao, incremente esse numero: saidas com metadata de versao anterior sao consideradas desatualizadas e recodificadas tanto por `pnpm encode-videos` quanto pelo worker do Controle. Saidas HLS validas sem metadata continuam sendo reutilizadas.
 
 ## Idempotencia e retomada
 
@@ -137,6 +140,19 @@ http://localhost:8787/Camundongos%20Aventureiros/<episodio>/master.m3u8
 - erro de codec: confirme se a distribuicao do FFmpeg inclui `libx264`.
 - nomes com acentos: mantenha UTF-8 e use URLs codificadas ao testar por HTTP.
 - navegador nao reproduz HLS: confira se o manifesto foi publicado como disponivel somente depois de validar todos os seus arquivos.
+
+## Envio para o Cloudflare R2
+
+Configure no `.env` local `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` (token com permissao Object Read & Write restrita ao bucket), `R2_BUCKET` e `R2_PUBLIC_URL`. O bucket precisa de acesso publico (URL `r2.dev` ou dominio proprio) e de uma politica CORS que permita `GET`/`HEAD` para a origem do app.
+
+```powershell
+pnpm media:upload --dry-run   # mostra quantos arquivos e GB faltam enviar
+pnpm media:upload             # envia somente o que falta ou mudou de tamanho
+```
+
+O script envia `video-processing/output` para `hls/`, `video-processing/thumbnails` para `thumbnails/` e as imagens de `files/` (capas, banners, posters) para `files/`, espelhando as rotas locais. Os MP4 originais nao sao enviados. Playlists recebem cache de 5 minutos, thumbnails (nomes versionados) cache imutavel e o restante 1 dia. Pode ser executado de novo a qualquer momento; falhas sao reenviadas na proxima execucao. Arquivos removidos localmente nao sao apagados do bucket.
+
+Depois do envio, defina `KIDSPLAY_MEDIA_BASE_URL` com a mesma URL publica do bucket. O catalogo passa a devolver URLs do storage para HLS, thumbnails e artes, sem alterar o banco; os MP4 deixam de ser oferecidos e o player usa somente HLS. Com a variavel vazia, tudo volta a ser servido localmente. Ao adicionar episodios, processe-os no Controle e rode `pnpm media:upload` antes de publica-los.
 
 ## Integracao do player
 

@@ -12,11 +12,27 @@ const outputRoot = path.join(root, "video-processing", "output")
 const metadataRoot = path.join(root, "video-processing", "metadata")
 const segmentDuration = 6
 
+// Bump whenever encoding settings change: outputs whose metadata records an
+// older version are treated as stale and re-encoded (worker and CLI).
+// v1: fixed bitrates up to 1080p. v2: CRF + source-aware caps, max 720p.
+export const ENCODER_VERSION = 3
+
+// videoBitrate is the *ceiling* (kbps). Each rendition is encoded with CRF for
+// constant visual quality and capped at min(ceiling, source bitrate x headroom),
+// so a low-bitrate source is never inflated into a much larger HLS.
+// 1080p is intentionally off for now (storage/data cost); add it back here.
 const profiles = [
-  { name: "480p", width: 854, height: 480, videoBitrate: 1000, audioBitrate: 128 },
+  { name: "480p", width: 854, height: 480, videoBitrate: 1200, audioBitrate: 128 },
   { name: "720p", width: 1280, height: 720, videoBitrate: 2500, audioBitrate: 128 },
-  { name: "1080p", width: 1920, height: 1080, videoBitrate: 5000, audioBitrate: 192 },
 ]
+
+const videoCrf = 20
+// Re-encoding loses a little quality each generation; allow some headroom
+// above the source bitrate so the cap never becomes the visible bottleneck.
+const sourceBitrateHeadroom = 1.5
+const minimumVideoBitrate = 400
+// O bitrate cresce menos que a area da imagem; expoente < 1 evita sufocar a qualidade menor.
+const pixelScaleExponent = 0.75
 
 function run(command, args, options = {}) {
   return new Promise((resolve, reject) => {
@@ -82,9 +98,14 @@ async function probe(source) {
   const video = data.streams?.find((stream) => stream.codec_type === "video")
   const audio = data.streams?.find((stream) => stream.codec_type === "audio")
   if (!video?.width || !video.height) throw new Error("O arquivo não possui um stream de vídeo válido")
+  const totalBitrate = Number(data.format?.bit_rate ?? 0)
+  const streamVideoBitrate = Number(video.bit_rate ?? 0)
+  const audioStreamBitrate = Number(audio?.bit_rate ?? 0)
   return {
     duration: Number(data.format?.duration ?? 0),
-    bitrate: Number(data.format?.bit_rate ?? 0),
+    bitrate: totalBitrate,
+    // Some containers omit the per-stream bitrate; fall back to total - audio.
+    videoBitrate: streamVideoBitrate || Math.max(0, totalBitrate - audioStreamBitrate),
     width: video.width,
     height: video.height,
     videoCodec: video.codec_name ?? null,
@@ -95,16 +116,22 @@ async function probe(source) {
   }
 }
 
-function selectProfiles(info) {
+function capToSource(ceilingKbps, info, profile) {
+  const sourceKbps = Math.round((info.videoBitrate || info.bitrate || 0) / 1000)
+  if (!sourceKbps) return ceilingKbps
+  const sourcePixels = info.width * info.height
+  const pixelRatio = sourcePixels > 0 ? Math.min(1, (profile.width * profile.height) / sourcePixels) : 1
+  const scaledSourceKbps = sourceKbps * sourceBitrateHeadroom * pixelRatio ** pixelScaleExponent
+  return Math.max(minimumVideoBitrate, Math.min(ceilingKbps, Math.round(scaledSourceKbps)))
+}
+
+export function selectProfiles(info) {
   const compatible = profiles.filter((profile) => info.width >= profile.width && info.height >= profile.height)
-  if (compatible.length > 0) return compatible
-  return [{
-    name: `${info.height}p`,
-    width: info.width,
-    height: info.height,
-    videoBitrate: Math.max(500, Math.round((info.bitrate || 1000000) / 1000)),
-    audioBitrate: 128,
-  }]
+  if (compatible.length > 0) {
+    return compatible.map((profile) => ({ ...profile, videoBitrate: capToSource(profile.videoBitrate, info, profile) }))
+  }
+  const original = { name: `${info.height}p`, width: info.width, height: info.height, audioBitrate: 128 }
+  return [{ ...original, videoBitrate: capToSource(profiles[0].videoBitrate, info, original) }]
 }
 
 function parseMaster(masterPath) {
@@ -130,6 +157,7 @@ export async function isComplete(metadataPath, sourceStat, episodeOutput, select
     // Metadata is advisory; a complete, valid canonical output can stand alone.
   }
   if (metadata?.status === "completed" && (metadata.sourceSize !== sourceStat.size || metadata.sourceModifiedAt !== sourceStat.mtime.toISOString())) return false
+  if (metadata?.status === "completed" && metadata.encoderVersion !== ENCODER_VERSION) return false
   try {
     if (metadata?.status === "completed") await validateOutput(episodeOutput, selectedProfiles)
     else await validateHls(path.join(episodeOutput, "master.m3u8"), { outputRoot: episodeOutput })
@@ -163,8 +191,10 @@ async function encodeProfile(source, episodeOutput, profile, hasAudio, signal) {
     "-y", "-i", source,
     "-map", "0:v:0", ...(hasAudio ? ["-map", "0:a:0?"] : []),
     "-vf", `scale=w=${profile.width}:h=${profile.height}:force_original_aspect_ratio=decrease:force_divisible_by=2`,
-    "-c:v", "libx264", "-preset", "veryfast", "-profile:v", "main", "-pix_fmt", "yuv420p",
-    "-b:v", `${profile.videoBitrate}k`, "-maxrate", `${Math.round(profile.videoBitrate * 1.1)}k`, "-bufsize", `${profile.videoBitrate * 2}k`,
+    // "medium" + "animation" tune: noticeably better quality per byte on
+    // cartoons than "veryfast", at the cost of a slower (one-off) encode.
+    "-c:v", "libx264", "-preset", "medium", "-tune", "animation", "-profile:v", "main", "-pix_fmt", "yuv420p",
+    "-crf", String(videoCrf), "-maxrate", `${profile.videoBitrate}k`, "-bufsize", `${profile.videoBitrate * 2}k`,
     "-g", "48", "-keyint_min", "48", "-sc_threshold", "0",
     ...(hasAudio ? ["-c:a", "aac", "-b:a", `${profile.audioBitrate}k`, "-ac", "2"] : []),
     "-f", "hls", "-hls_time", String(segmentDuration), "-hls_playlist_type", "vod",
@@ -203,6 +233,7 @@ export async function writeEncodingMetadata({ source, episodeOutput, sourceStats
   await fs.mkdir(path.dirname(metadataPath), { recursive: true })
   await fs.writeFile(metadataPath, `${JSON.stringify({
     status: "completed",
+    encoderVersion: ENCODER_VERSION,
     source: path.relative(projectRoot, source),
     sourceSize: sourceStats.size,
     sourceModifiedAt: sourceStats.mtime.toISOString(),
