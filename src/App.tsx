@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState } from "react"
 import type { Profile } from "./types/profile"
 import type { Episode, Show } from "./types/catalog"
 import { profileService } from "./services/profileService"
-import { getSession, login, logout } from "./services/authService"
+import { changePassword, getSession, login, logout } from "./services/authService"
 import { apiFetch } from "./services/apiClient"
 import { getScreenTime } from "./services/playbackService"
 import { Navbar } from "./components/Navbar"
 import { CredentialsScreen } from "./screens/CredentialsScreen"
+import { ChangePasswordScreen } from "./screens/ChangePasswordScreen"
 import { ProfileScreen } from "./screens/ProfileScreen"
 import { PlayerScreen } from "./screens/PlayerScreen"
 import { HomeScreen } from "./screens/HomeScreen"
@@ -57,6 +58,8 @@ export default function App() {
   const [lastEpisodeId, setLastEpisodeId] = useState<number | null>(null)
   // Limite diario definido na Area dos Pais: ao esgotar, a TV mostra "Hora de descansar".
   const [timeUp, setTimeUp] = useState(false)
+  // Primeiro acesso com senha provisoria: precisa criar a propria senha antes de entrar.
+  const [passwordChange, setPasswordChange] = useState<{ temporaryPassword: string } | null>(null)
 
   const { favoriteShowIds, toggleFavorite } = useFavoriteShows(currentUser)
   useTvRemoteNavigation(Boolean(currentUser) && !selectedEpisode && !timeUp)
@@ -101,6 +104,10 @@ export default function App() {
       try {
         const account = await getSession()
         if (!account || cancelled) return
+        if (account.mustChangePassword) {
+          setPasswordChange({ temporaryPassword: "" })
+          return
+        }
         const profilesData = await profileService.getProfiles()
         if (!cancelled) routeAfterAuthentication(profilesData, { justLoggedIn: false })
       } catch (error) {
@@ -172,11 +179,33 @@ export default function App() {
     }
   }, [profileId])
 
+  if (passwordChange) {
+    return (
+      <ChangePasswordScreen
+        temporaryPassword={passwordChange.temporaryPassword}
+        onSubmit={async (currentPassword, newPassword) => {
+          await changePassword(currentPassword, newPassword)
+          const profilesData = await profileService.getProfiles()
+          setPasswordChange(null)
+          routeAfterAuthentication(profilesData, { justLoggedIn: true })
+        }}
+        onCancel={() => {
+          setPasswordChange(null)
+          handleLogout()
+        }}
+      />
+    )
+  }
+
   if (!isAuthenticated) {
     return (
       <CredentialsScreen
         onLogin={async (email, password) => {
-          await login(email, password)
+          const account = await login(email, password)
+          if (account.mustChangePassword) {
+            setPasswordChange({ temporaryPassword: password })
+            return
+          }
           const profilesData = await profileService.getProfiles()
           routeAfterAuthentication(profilesData, { justLoggedIn: true })
         }}

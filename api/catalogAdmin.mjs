@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { hashPassword } from './passwords.mjs'
+import { generateTemporaryPassword, temporaryPasswordExpiry } from './temporaryPasswords.mjs'
 import { slugFromName, listTags, saveTag, loadTitleTagRelations, withTitleTags } from './catalogTags.mjs'
 import { MediaProcessingQueue, normalizeMp4Path } from '../video-processing/scripts/media-processing.mjs'
 
@@ -436,7 +437,8 @@ function accountStatus(value) {
 
 async function listAccounts() {
   const rows = await pool.query(
-    `SELECT id, name, email, status, email_verified_at, created_at
+    `SELECT id, name, email, status, email_verified_at, created_at, must_change_password, temp_password_expires_at,
+       (temp_password_expires_at IS NOT NULL AND temp_password_expires_at <= CURRENT_TIMESTAMP(3)) AS temp_expired
      FROM users WHERE status <> 'deleted' ORDER BY created_at DESC, id DESC`,
   )
   return rows.map((row) => ({
@@ -446,24 +448,66 @@ async function listAccounts() {
     status: row.status,
     emailVerified: row.email_verified_at !== null,
     createdAt: row.created_at,
+    mustChangePassword: Number(row.must_change_password) === 1,
+    temporaryPasswordExpiresAt: row.temp_password_expires_at,
+    temporaryPasswordExpired: Number(row.temp_expired) === 1,
   }))
+}
+
+// A familia recebe uma senha provisoria curta e troca no primeiro acesso.
+async function issueTemporaryPassword(connection, id) {
+  const temporaryPassword = generateTemporaryPassword()
+  const expiresAt = temporaryPasswordExpiry()
+  await connection.query(
+    `UPDATE users SET password_hash = ?, must_change_password = 1, temp_password_expires_at = ?,
+       failed_login_attempts = 0, login_locked_until = NULL WHERE id = ?`,
+    [await hashPassword(temporaryPassword), expiresAt, id],
+  )
+  return { temporaryPassword, temporaryPasswordExpiresAt: expiresAt }
 }
 
 async function createAccount(body) {
   if (Object.hasOwn(body, 'role')) throw fail(400, 'Privilégios são gerenciados somente pelo provisionamento local.')
   const name = text(body.name, 'Nome', 160)
   const email = normalizeEmail(body.email)
-  if (typeof body.password !== 'string' || body.password.length < 12 || body.password.length > 1024) {
-    throw fail(400, 'A senha deve ter pelo menos 12 caracteres.')
-  }
   const status = accountStatus(body.status)
-  const passwordHash = await hashPassword(body.password)
+  const temporaryPassword = generateTemporaryPassword()
+  const expiresAt = temporaryPasswordExpiry()
   const result = await pool.query(
-    `INSERT INTO users (name, email, password_hash, status, email_verified_at)
-     VALUES (?, ?, ?, ?, CASE WHEN ? = 'active' THEN CURRENT_TIMESTAMP(3) ELSE NULL END)`,
-    [name, email, passwordHash, status, status],
+    `INSERT INTO users (name, email, password_hash, status, email_verified_at, must_change_password, temp_password_expires_at)
+     VALUES (?, ?, ?, ?, CASE WHEN ? = 'active' THEN CURRENT_TIMESTAMP(3) ELSE NULL END, 1, ?)`,
+    [name, email, await hashPassword(temporaryPassword), status, status, expiresAt],
   )
-  return { id: Number(result.insertId), name, email, status, emailVerified: status === 'active' }
+  return {
+    id: Number(result.insertId),
+    name,
+    email,
+    status,
+    emailVerified: status === 'active',
+    mustChangePassword: true,
+    temporaryPassword,
+    temporaryPasswordExpiresAt: expiresAt,
+  }
+}
+
+// Nova senha provisoria (esqueceu a senha ou a provisoria expirou); encerra as sessoes abertas.
+async function resetAccountPassword(id) {
+  const rows = await pool.query("SELECT id, role FROM users WHERE id = ? AND status <> 'deleted' LIMIT 1", [id])
+  if (!rows.length) throw fail(404, 'Conta não encontrada.')
+  if (rows[0].role === 'admin') throw fail(400, 'Contas administradoras não usam senha provisória; use o provisionamento local.')
+  const connection = await pool.getConnection()
+  try {
+    await connection.beginTransaction()
+    const issued = await issueTemporaryPassword(connection, id)
+    await connection.query('UPDATE user_sessions SET revoked_at = CURRENT_TIMESTAMP(3) WHERE user_id = ? AND revoked_at IS NULL', [id])
+    await connection.commit()
+    return issued
+  } catch (error) {
+    await connection.rollback()
+    throw error
+  } finally {
+    connection.release()
+  }
 }
 
 async function updateAccount(id, body) {
@@ -533,6 +577,7 @@ async function handle(req, res, pathname = new URL(req.url || '/', 'http://local
       const user = await authenticatedUser(req)
       if (!user) throw fail(401, 'Entre com uma conta administrativa.')
       if (user.role !== 'admin') throw fail(403, 'Acesso exclusivo de administradores.')
+      if (user.mustChangePassword) throw fail(403, 'Troque a senha provisória antes de usar o Controle.')
     }
     if (req.method === 'GET' && pathname === '/') {
       const page = await readFile(pagePath)
@@ -622,6 +667,11 @@ async function handle(req, res, pathname = new URL(req.url || '/', 'http://local
     }
     if (req.method === 'POST' && pathname === '/api/accounts') {
       return sendJson(res, 201, await createAccount(await readBody(req)))
+    }
+    const resetPasswordId = idFromPath(pathname, /^\/api\/accounts\/(\d+)\/temporary-password$/)
+    if (req.method === 'POST' && resetPasswordId !== null) {
+      await readBody(req)
+      return sendJson(res, 200, await resetAccountPassword(resetPasswordId))
     }
     const accountId = idFromPath(pathname, /^\/api\/accounts\/(\d+)$/)
     if (req.method === 'PUT' && accountId !== null) {

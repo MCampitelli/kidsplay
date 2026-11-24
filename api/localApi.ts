@@ -9,12 +9,17 @@ import type { Plugin } from 'vite'
 import { createDatabasePool } from '../config/database.mjs'
 import { readConfig } from '../config/environment.mjs'
 import { createRequestPolicy } from './requestPolicy.mjs'
-import { verifyPassword } from './passwords.mjs'
+import { hashPassword, verifyPassword } from './passwords.mjs'
 import { loadPublicTitleTags, type CatalogTag } from './catalogTags.mjs'
 import { createFamilyApi } from './familyApi.js'
 
 const SESSION_COOKIE = 'kidsplay_session'
 const SESSION_DAYS = 14
+const LOGIN_MAX_ATTEMPTS = 10
+const LOGIN_LOCK_MINUTES = 15
+const MIN_PASSWORD_LENGTH = 8
+// Rotas liberadas enquanto a conta ainda usa a senha provisoria (precisa troca-la antes).
+const PASSWORD_CHANGE_ALLOWED = new Set(['/api/health', '/api/auth/login', '/api/auth/logout', '/api/auth/session', '/api/auth/change-password'])
 
 type ApiConfig = ReturnType<typeof readConfig>
 
@@ -23,6 +28,12 @@ type AuthenticatedUser = {
   name: string
   email: string
   role: 'user' | 'admin'
+  sessionId: string
+  mustChangePassword: boolean
+}
+
+function publicAccount(user: AuthenticatedUser) {
+  return { id: Number(user.id), name: user.name, email: user.email, role: user.role, mustChangePassword: user.mustChangePassword }
 }
 
 type ProfileRow = {
@@ -271,7 +282,7 @@ export function createApi(config: ApiConfig, pool: Pool) {
     if (!token) return null
 
     const rows = await pool.query(
-      `SELECT u.id, u.name, u.email, u.role
+      `SELECT u.id, u.name, u.email, u.role, u.must_change_password, s.id AS session_id
        FROM user_sessions s
        INNER JOIN users u ON u.id = s.user_id
        WHERE s.token_hash = ?
@@ -281,13 +292,58 @@ export function createApi(config: ApiConfig, pool: Pool) {
        LIMIT 1`,
       [hashToken(token)],
     )
-    const user = rows[0] as AuthenticatedUser | undefined
+    const user = rows[0] as
+      | { id: string | number | bigint; name: string; email: string; role: 'user' | 'admin'; must_change_password: number; session_id: string | number | bigint }
+      | undefined
     if (!user) return null
 
-    await pool.query('UPDATE user_sessions SET last_used_at = CURRENT_TIMESTAMP(3) WHERE token_hash = ?', [
-      hashToken(token),
-    ])
-    return { id: String(user.id), name: user.name, email: user.email, role: user.role }
+    await pool.query('UPDATE user_sessions SET last_used_at = CURRENT_TIMESTAMP(3) WHERE id = ?', [user.session_id])
+    return {
+      id: String(user.id),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      sessionId: String(user.session_id),
+      mustChangePassword: Number(user.must_change_password) === 1,
+    }
+  }
+
+  // Troca de senha (obrigatoria no primeiro acesso com senha provisoria).
+  async function changePassword(req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse) {
+    const user = await authenticatedUser(req)
+    if (!user) return json(res, 401, { error: 'Sessão não autenticada.' })
+    const body = await readJsonBody(req)
+    const currentPassword = typeof body.currentPassword === 'string' ? body.currentPassword : ''
+    const newPassword = typeof body.newPassword === 'string' ? body.newPassword : ''
+    if (newPassword.length < MIN_PASSWORD_LENGTH || newPassword.length > 1024) {
+      return json(res, 400, { error: `A nova senha precisa ter pelo menos ${MIN_PASSWORD_LENGTH} caracteres.` })
+    }
+    if (newPassword === currentPassword) return json(res, 400, { error: 'A nova senha precisa ser diferente da atual.' })
+    const [account] = await pool.query('SELECT password_hash FROM users WHERE id = ?', [user.id])
+    if (!account || !currentPassword || !(await verifyPassword(currentPassword, account.password_hash))) {
+      return json(res, 401, { error: 'A senha atual está incorreta.' })
+    }
+    const connection = await pool.getConnection()
+    try {
+      await connection.beginTransaction()
+      await connection.query(
+        `UPDATE users SET password_hash = ?, must_change_password = 0, temp_password_expires_at = NULL,
+           failed_login_attempts = 0, login_locked_until = NULL WHERE id = ?`,
+        [await hashPassword(newPassword), user.id],
+      )
+      // Outros aparelhos que entraram com a senha antiga precisam entrar de novo.
+      await connection.query(
+        'UPDATE user_sessions SET revoked_at = CURRENT_TIMESTAMP(3) WHERE user_id = ? AND id <> ? AND revoked_at IS NULL',
+        [user.id, user.sessionId],
+      )
+      await connection.commit()
+    } catch (error) {
+      await connection.rollback()
+      throw error
+    } finally {
+      connection.release()
+    }
+    return json(res, 200, { user: publicAccount({ ...user, mustChangePassword: false }) })
   }
 
   const family = createFamilyApi({
@@ -308,6 +364,31 @@ export function createApi(config: ApiConfig, pool: Pool) {
     if (!['GET', 'POST', 'PUT', 'DELETE'].includes(req.method ?? '')) {
       res.setHeader('Allow', 'GET, POST, PUT, DELETE')
       return json(res, 405, { error: 'Método não suportado.' })
+    }
+
+    // Conta com senha provisoria so pode trocar a senha (ou sair) ate concluir a troca.
+    if (!PASSWORD_CHANGE_ALLOWED.has(pathname) && pool) {
+      try {
+        const user = await authenticatedUser(req)
+        if (user?.mustChangePassword) {
+          return json(res, 403, { error: 'Troque a senha provisória para continuar.', code: 'password_change_required' })
+        }
+      } catch {
+        console.error('[kidsplay-api] session check failed')
+        return json(res, 503, { error: 'Não foi possível conectar ao MariaDB.' })
+      }
+    }
+
+    if (pathname === '/api/auth/change-password' && req.method === 'POST') {
+      try {
+        return await changePassword(req, res)
+      } catch (error) {
+        if (error instanceof SyntaxError) return json(res, 400, { error: 'Corpo JSON inválido.' })
+        const statusCode = (error as { statusCode?: number }).statusCode
+        if (statusCode) return json(res, statusCode, { error: 'Requisição inválida.' })
+        console.error('[kidsplay-api] change password failed')
+        return json(res, 503, { error: 'Não foi possível conectar ao MariaDB.' })
+      }
     }
 
     if (pathname === '/api/health' && req.method === 'GET') {
@@ -348,15 +429,55 @@ export function createApi(config: ApiConfig, pool: Pool) {
         if (!email || email.length > 254 || !password || password.length > 1024) return json(res, 400, { error: 'E-mail ou senha inválidos.' })
 
         const rows = await pool.query(
-          `SELECT id, name, email, password_hash, status, role
+          `SELECT id, name, email, password_hash, status, role, must_change_password, failed_login_attempts,
+             (temp_password_expires_at IS NOT NULL AND temp_password_expires_at <= CURRENT_TIMESTAMP(3)) AS temp_expired,
+             GREATEST(0, TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP(3), login_locked_until)) AS locked_seconds
            FROM users WHERE email = ? LIMIT 1`,
           [email],
         )
         const account = rows[0] as
-          | (AuthenticatedUser & { password_hash: string; status: string })
+          | {
+              id: string | number | bigint
+              name: string
+              email: string
+              role: 'user' | 'admin'
+              password_hash: string
+              status: string
+              must_change_password: number
+              failed_login_attempts: number
+              temp_expired: number | bigint
+              locked_seconds: number | bigint | null
+            }
           | undefined
+        // Bloqueio por tentativas: protege principalmente a senha provisoria (curta).
+        const lockedSeconds = Number(account?.locked_seconds ?? 0)
+        if (account && lockedSeconds > 0) {
+          return json(res, 429, { error: `Muitas tentativas erradas. Tente de novo em ${Math.ceil(lockedSeconds / 60)} min.` })
+        }
         if (!account || account.status !== 'active' || !(await verifyPassword(password, account.password_hash))) {
+          if (account) {
+            const attempts = Number(account.failed_login_attempts) + 1
+            if (attempts >= LOGIN_MAX_ATTEMPTS) {
+              await pool.query(
+                `UPDATE users SET failed_login_attempts = 0,
+                   login_locked_until = CURRENT_TIMESTAMP(3) + INTERVAL ${LOGIN_LOCK_MINUTES} MINUTE WHERE id = ?`,
+                [account.id],
+              )
+            } else {
+              await pool.query('UPDATE users SET failed_login_attempts = ? WHERE id = ?', [attempts, account.id])
+            }
+          }
           return json(res, 401, { error: 'E-mail ou senha inválidos.' })
+        }
+        if (Number(account.failed_login_attempts) > 0) {
+          await pool.query('UPDATE users SET failed_login_attempts = 0, login_locked_until = NULL WHERE id = ?', [account.id])
+        }
+        const mustChangePassword = Number(account.must_change_password) === 1
+        if (mustChangePassword && Number(account.temp_expired) === 1) {
+          return json(res, 401, {
+            error: 'A senha provisória expirou. Peça uma nova a quem administra o KidsPlay.',
+            code: 'temporary_password_expired',
+          })
         }
 
         const token = randomBytes(32).toString('base64url')
@@ -380,7 +501,7 @@ export function createApi(config: ApiConfig, pool: Pool) {
 
         setSessionCookie(res, token)
         return json(res, 200, {
-          user: { id: Number(account.id), name: account.name, email: account.email, role: account.role },
+          user: { id: Number(account.id), name: account.name, email: account.email, role: account.role, mustChangePassword },
         })
       } catch (error) {
         if (error instanceof SyntaxError) return json(res, 400, { error: 'Corpo JSON inválido.' })
@@ -415,7 +536,7 @@ export function createApi(config: ApiConfig, pool: Pool) {
       try {
         const user = await authenticatedUser(req)
         if (!user) return json(res, 401, { error: 'Sessão não autenticada.' })
-        return json(res, 200, { user: { id: Number(user.id), name: user.name, email: user.email, role: user.role } })
+        return json(res, 200, { user: publicAccount(user) })
       } catch {
         console.error('[kidsplay-api] session request failed')
         return json(res, 503, { error: 'Não foi possível conectar ao MariaDB.' })

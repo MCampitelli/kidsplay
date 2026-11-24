@@ -3,6 +3,8 @@ const state = {
   tags: [],
   accounts: [],
   suggestions: [],
+  // Senha provisoria recem-gerada: fica so na memoria desta tela, nunca e consultavel depois.
+  issuedPassword: null,
   tab: 'accounts',
   titleId: null,
   seasonId: null,
@@ -151,17 +153,33 @@ function renderAccounts() {
     id: account.id,
     type: 'account',
     title: account.name,
-    detail: account.email,
+    detail: account.mustChangePassword
+      ? `${account.email} · ${account.temporaryPasswordExpired ? 'senha provisória expirada' : 'aguardando 1º acesso'}`
+      : account.email,
     status: account.status,
     selected: selected?.id === account.id,
   }))
+  const issued = state.issuedPassword && (isNew || state.issuedPassword.accountId === selected?.id) ? state.issuedPassword : null
+  const issuedPanel = issued
+    ? `<div class="temp-password" role="status">
+        <p>Senha provisória de <strong>${escapeHtml(issued.name)}</strong> (aparece só agora):</p>
+        <p class="temp-password-value">${escapeHtml(issued.password)}</p>
+        <p class="temp-password-hint">Vale até ${escapeHtml(new Date(issued.expiresAt).toLocaleDateString('pt-BR'))}. No primeiro acesso a família cria a própria senha.</p>
+        <button class="button button-primary button-small" type="button" data-action="copy-temp-password">Copiar mensagem para a família</button>
+      </div>`
+    : ''
+  const passwordStatus = selected
+    ? selected.mustChangePassword
+      ? `<div class="field full"><label>Senha</label><input readonly value="${selected.temporaryPasswordExpired ? 'Senha provisória expirada: gere uma nova' : `Provisória, aguardando o 1º acesso (vale até ${new Date(selected.temporaryPasswordExpiresAt).toLocaleDateString('pt-BR')})`}" /></div>`
+      : '<div class="field full"><label>Senha</label><input readonly value="Definida pela família" /></div>'
+    : ''
   const form = selected || isNew
     ? `<form data-form="account">
         <div class="inline-note">As contas usam e-mail para entrar. Senhas nunca são exibidas e só ficam armazenadas como hash seguro. Marcar como ativa confirma o e-mail manualmente; este Controle não envia mensagens.</div>
         <div class="form-grid">
           <div class="field full"><label for="account-name">Nome *</label><input id="account-name" name="name" maxlength="160" required autocomplete="name" value="${escapeHtml(selected?.name)}" /></div>
           <div class="field full"><label for="account-email">E-mail *</label><input id="account-email" name="email" type="email" maxlength="254" required autocomplete="email" value="${escapeHtml(selected?.email)}" /></div>
-          ${selected ? '<div class="field full"><small>A senha existente não pode ser consultada. O status altera o acesso sem remover a conta.</small></div>' : '<div class="field full"><label for="account-password">Senha inicial *</label><input id="account-password" name="password" type="password" minlength="12" maxlength="1024" required autocomplete="new-password" /><small>Mínimo de 12 caracteres. A senha é enviada apenas ao backend para gerar o hash.</small></div>'}
+          ${selected ? `${passwordStatus}<div class="field full"><small>A senha existente não pode ser consultada. O status altera o acesso sem remover a conta.</small><button class="button button-quiet button-small" type="button" data-action="reset-password" data-id="${selected.id}">Gerar nova senha provisória</button></div>` : '<div class="field full"><small>O sistema gera uma senha provisória de 5 caracteres, válida por 7 dias. Passe para a família junto com o e-mail; no primeiro acesso ela cria a própria senha.</small></div>'}
           <div class="field"><label for="account-status">Acesso</label><select id="account-status" name="status">${accountStatusSelect(selected?.status || 'active').replace('<select name="status" required>', '').replace('</select>', '')}</select></div>
           ${selected ? `<div class="field"><label>Cadastro</label><input readonly value="${selected.emailVerified ? 'E-mail verificado' : 'E-mail não verificado'}" /></div>` : ''}
         </div>${saveButton(selected ? 'Salvar conta' : 'Criar conta')}
@@ -170,7 +188,7 @@ function renderAccounts() {
 
   workspace.innerHTML = `<div class="workspace-grid">
     <section class="record-column"><div class="section-heading"><div><h2>Contas</h2><p>${state.accounts.length} usuário(s)</p></div><button class="button button-primary button-small" type="button" data-action="new">+ Nova conta</button></div>${recordList(items, 'Nenhum usuário cadastrado.')}</section>
-    <section class="editor-column">${editorHeading('conta', 'Cadastro e controle de acesso.', Boolean(selected))}${form}</section>
+    <section class="editor-column">${editorHeading('conta', 'Cadastro e controle de acesso.', Boolean(selected))}${issuedPanel}${form}</section>
   </div>`
 }
 
@@ -543,6 +561,9 @@ async function saveForm(form) {
       state.edit.title = saved.id
     }
     if (type === 'account') state.edit.account = saved.id
+    if (type === 'account' && saved.temporaryPassword) {
+      state.issuedPassword = { accountId: saved.id, name: saved.name, email: saved.email, password: saved.temporaryPassword, expiresAt: saved.temporaryPasswordExpiresAt }
+    }
     if (type === 'tag') state.edit.tag = saved.id
     if (type === 'season') {
       state.titleId = saved.titleId
@@ -609,6 +630,32 @@ document.addEventListener('click', async (event) => {
     }
     return
   }
+  if (actionButton?.dataset.action === 'copy-temp-password' && state.issuedPassword) {
+    const issued = state.issuedPassword
+    const message = `Olá! Seu acesso ao KidsPlay:\nE-mail: ${issued.email}\nSenha provisória: ${issued.password}\n` +
+      `Ela vale até ${new Date(issued.expiresAt).toLocaleDateString('pt-BR')}. No primeiro acesso você vai criar a sua própria senha.\n` +
+      `Área dos Pais (celular): ${window.location.protocol === 'https:' ? window.location.origin : '<endereço do KidsPlay>'}/pais/`
+    try {
+      await navigator.clipboard.writeText(message)
+      showNotice('Mensagem copiada. Cole no WhatsApp ou e-mail da família.')
+    } catch {
+      showNotice('Não foi possível copiar automaticamente; anote a senha exibida.', 'error')
+    }
+    return
+  }
+  if (actionButton?.dataset.action === 'reset-password') {
+    const account = state.accounts.find((item) => item.id === Number(actionButton.dataset.id))
+    if (!account || !window.confirm(`Gerar uma nova senha provisória para ${account.name}? A senha atual deixa de valer e os aparelhos conectados saem da conta.`)) return
+    try {
+      const issued = await api(`/api/accounts/${account.id}/temporary-password`, { method: 'POST', body: '{}' })
+      state.issuedPassword = { accountId: account.id, name: account.name, email: account.email, password: issued.temporaryPassword, expiresAt: issued.temporaryPasswordExpiresAt }
+      await refreshAccounts()
+      showNotice('Nova senha provisória gerada.')
+    } catch (error) {
+      showNotice(error.message, 'error')
+    }
+    return
+  }
   if (actionButton?.dataset.action === 'process-pending') {
     try {
       const result = await api('/api/media-processing/pending', { method: 'POST', body: '{}' })
@@ -632,6 +679,7 @@ document.addEventListener('click', async (event) => {
   if (actionButton?.dataset.action === 'new') {
     const type = { accounts: 'account', titles: 'title', tags: 'tag', seasons: 'season', episodes: 'episode', assets: 'asset' }[state.tab]
     state.edit[type] = 'new'
+    if (type === 'account') state.issuedPassword = null
     if (type === 'title') state.slugTouched = false
     render()
     return
@@ -641,6 +689,7 @@ document.addEventListener('click', async (event) => {
   if (!row) return
   const id = Number(row.dataset.id)
   if (row.dataset.edit === 'account') {
+    if (state.issuedPassword?.accountId !== id) state.issuedPassword = null
     state.tab = 'accounts'; state.edit.account = id
   } else if (row.dataset.edit === 'suggestion') {
     state.tab = 'suggestions'; state.edit.suggestion = id

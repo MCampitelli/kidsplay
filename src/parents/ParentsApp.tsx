@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react"
-import { getSession, login, logout, type AuthenticatedAccount } from "../services/authService"
+import { changePassword, getSession, login, logout, type AuthenticatedAccount } from "../services/authService"
 import { LoadingBlock } from "./components"
 import { LoginView } from "./views/LoginView"
+import { ChangePasswordView } from "./views/ChangePasswordView"
 import { HomeView } from "./views/HomeView"
 import { ProfileView } from "./views/ProfileView"
 import { ProfileFormView } from "./views/ProfileFormView"
@@ -44,6 +45,8 @@ export function routeHash(route: Route) {
 export function ParentsApp() {
   const [account, setAccount] = useState<AuthenticatedAccount | null>(null)
   const [checkingSession, setCheckingSession] = useState(true)
+  // Senha provisoria digitada no login, para nao pedir de novo na troca obrigatoria.
+  const [temporaryPassword, setTemporaryPassword] = useState("")
   const [route, setRoute] = useState<Route>(() => parseRoute(window.location.hash))
 
   useEffect(() => {
@@ -92,8 +95,25 @@ export function ParentsApp() {
       <LoginView
         onLogin={async (email, password) => {
           const user = await login(email, password)
+          setTemporaryPassword(user.mustChangePassword ? password : "")
           setAccount(user)
           navigate({ name: "home" })
+        }}
+      />
+    )
+  }
+
+  if (account.mustChangePassword) {
+    return (
+      <ChangePasswordView
+        temporaryPassword={temporaryPassword}
+        onSubmit={async (currentPassword, newPassword) => {
+          setAccount(await changePassword(currentPassword, newPassword))
+          setTemporaryPassword("")
+        }}
+        onCancel={() => {
+          void logout().catch(() => undefined)
+          setAccount(null)
         }}
       />
     )

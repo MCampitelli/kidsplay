@@ -39,6 +39,12 @@ public/data/profiles.json  # origem dos perfis para o primeiro seed
 - Use o e-mail e a senha da conta local criada pelo seed MariaDB.
 - A senha é verificada no backend e a sessão usa cookie `HttpOnly`; credenciais MariaDB não vão para o navegador.
 
+### Contas das famílias
+- Crie a conta no Controle (aba **Contas**, só nome e e-mail). O sistema gera uma **senha provisória de 5 caracteres** (sem 0/O, 1/I/L), mostrada uma única vez, com o botão **Copiar mensagem para a família**.
+- A senha provisória vale **7 dias** e só permite trocar a senha: no primeiro acesso (TV ou Área dos Pais) a família cria a própria senha, com pelo menos 8 caracteres. Até lá, o servidor recusa as demais rotas (`403 password_change_required`).
+- Esqueceu a senha ou a provisória expirou: **Gerar nova senha provisória** na conta (encerra os aparelhos conectados).
+- Qualquer conta: **10 senhas erradas** bloqueiam o login por 15 minutos. Gerar uma nova senha provisória desbloqueia.
+
 ### Área dos Pais (celular)
 - Endereço: `/pais/` (ex.: `http://192.168.1.9:8443/pais/` na rede local). Mesma conta do KidsPlay. Pode ser **salva na tela inicial**: botão **Instalar** no Android/Chrome; no iPhone, Safari → Compartilhar → **Adicionar à Tela de Início**.
 - **Perfis**: criar, editar (nome e figurinha) e excluir. **Excluir é definitivo**: o perfil é apagado do MariaDB junto com preferências, histórico, tempo de tela e bloqueios, sem opção de recuperação. É intencional, por se tratar de dados de crianças.

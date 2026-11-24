@@ -16,7 +16,7 @@ try {
     checksum CHAR(64) NOT NULL,
     applied_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
-  for (const version of ['001-title-tags.sql', '002-user-role.sql', '003-parental-controls.sql']) {
+  for (const version of ['001-title-tags.sql', '002-user-role.sql', '003-parental-controls.sql', '004-temporary-passwords.sql']) {
     const sql = await readFile(new URL(`../database/migrations/${version}`, import.meta.url), 'utf8')
     const checksum = createHash('sha256').update(sql).digest('hex')
     const rows = await connection.query('SELECT checksum FROM schema_migrations WHERE version = ?', [version])
