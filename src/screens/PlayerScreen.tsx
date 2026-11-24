@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import type Hls from "hls.js"
 import type { Episode, Show } from "../types/catalog"
 import { getNextTvTarget } from "../lib/tvNavigation"
+import { sendProgress } from "../services/playbackService"
 import {
   BackIcon,
   ExitFullscreenIcon,
@@ -16,6 +17,8 @@ import {
 // segue automaticamente se ninguem responder. Recusar volta para a lista de episodios.
 const NEXT_EPISODE_THRESHOLD_SECONDS = 4
 const AUTO_NEXT_SECONDS = 10
+// Progresso para o historico, o "assistindo agora" e o limite diario da Area dos Pais.
+const PROGRESS_INTERVAL_SECONDS = 15
 
 function formatTime(time: number) {
   if (!Number.isFinite(time) || time < 0) return "00:00"
@@ -30,19 +33,24 @@ function formatTime(time: number) {
 }
 
 export function PlayerScreen({
+  profileId,
   show,
   episode,
   videoSrc,
   hlsSrc,
   onBack,
   onEpisodeChange,
+  onTimeUp,
 }: {
+  profileId: number
   show: Show
   episode: Episode
   videoSrc: string
   hlsSrc?: string
   onBack: () => void
   onEpisodeChange: (episode: Episode) => void
+  /** Limite diario esgotado (definido na Area dos Pais). */
+  onTimeUp: () => void
 }) {
   const playerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -335,6 +343,53 @@ export function PlayerScreen({
   // Quando o aviso de proximo episodio surge, o foco vai para "Assistir agora" para
   // que o OK do controle remoto responda direto.
   const isNextEpisodePromptVisible = nextEpisodeCountdown !== null && Boolean(nextEpisode)
+
+  // Conta so o tempo realmente assistido (video tocando) e envia a cada 15s, ao terminar
+  // e ao sair do episodio. Se o limite diario acabar, pausa e avisa o App.
+  const watchedSinceLastSendRef = useRef(0)
+  const flushProgressRef = useRef<(options?: { completed?: boolean; keepalive?: boolean }) => void>(() => undefined)
+  const onTimeUpRef = useRef(onTimeUp)
+  onTimeUpRef.current = onTimeUp
+  useEffect(() => {
+    const episodeId = episode.id
+    watchedSinceLastSendRef.current = 0
+    const flush = ({ completed = false, keepalive = false } = {}) => {
+      const video = videoRef.current
+      const durationSeconds = Math.floor(video?.duration ?? 0)
+      if (!video || !Number.isFinite(durationSeconds) || durationSeconds <= 0) return
+      const watchedSeconds = watchedSinceLastSendRef.current
+      watchedSinceLastSendRef.current = 0
+      void sendProgress(
+        {
+          profileId,
+          episodeId,
+          positionSeconds: Math.min(Math.floor(video.currentTime), durationSeconds),
+          durationSeconds,
+          watchedSeconds,
+          completed,
+        },
+        { keepalive },
+      )
+        .then((screenTime) => {
+          if (screenTime?.remainingSeconds === 0) {
+            videoRef.current?.pause()
+            onTimeUpRef.current()
+          }
+        })
+        .catch(() => undefined)
+    }
+    flushProgressRef.current = flush
+    const tick = window.setInterval(() => {
+      const video = videoRef.current
+      if (!video || video.paused || video.ended || video.readyState < 3) return
+      watchedSinceLastSendRef.current += 1
+      if (watchedSinceLastSendRef.current >= PROGRESS_INTERVAL_SECONDS) flush()
+    }, 1000)
+    return () => {
+      window.clearInterval(tick)
+      if (watchedSinceLastSendRef.current > 0) flush({ keepalive: true })
+    }
+  }, [episode.id, profileId])
   useEffect(() => {
     if (isNextEpisodePromptVisible) playNextButtonRef.current?.focus({ preventScroll: true })
   }, [isNextEpisodePromptVisible])
@@ -561,6 +616,7 @@ export function PlayerScreen({
           onWaiting={() => setIsLoading(true)}
           onPlaying={() => setIsLoading(false)}
           onEnded={() => {
+            flushProgressRef.current({ completed: true })
             setIsPlaying(false)
             // Ultimo episodio (ou proximo recusado): volta para a lista de episodios.
             if (!nextEpisode || autoNextCancelledRef.current) {

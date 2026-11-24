@@ -492,6 +492,41 @@ async function updateAccount(id, body) {
   }
 }
 
+const suggestionStatuses = new Set(['pending', 'added', 'declined'])
+
+// Sugestoes de desenhos enviadas pela Area dos Pais.
+async function listSuggestions() {
+  const rows = await pool.query(
+    `SELECT s.id, s.title_name, s.note, s.status, s.admin_note, s.created_at, s.updated_at,
+       u.name AS account_name, u.email AS account_email, p.name AS profile_name
+     FROM title_suggestions s
+     INNER JOIN users u ON u.id = s.user_id
+     LEFT JOIN profiles p ON p.id = s.profile_id
+     ORDER BY s.status = 'pending' DESC, s.created_at DESC
+     LIMIT 300`,
+  )
+  return rows.map((row) => ({
+    id: Number(row.id),
+    titleName: row.title_name,
+    note: row.note,
+    status: row.status,
+    adminNote: row.admin_note,
+    accountName: row.account_name,
+    accountEmail: row.account_email,
+    profileName: row.profile_name,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }))
+}
+
+async function updateSuggestion(id, body) {
+  if (!suggestionStatuses.has(body.status)) throw fail(400, 'Status da sugestão inválido.')
+  const adminNote = text(body.adminNote, 'Resposta', 500, true)
+  const result = await pool.query('UPDATE title_suggestions SET status = ?, admin_note = ? WHERE id = ?', [body.status, adminNote || null, id])
+  if (!result.affectedRows) throw fail(404, 'Sugestão não encontrada.')
+  return (await listSuggestions()).find((suggestion) => suggestion.id === id)
+}
+
 async function handle(req, res, pathname = new URL(req.url || '/', 'http://localhost').pathname) {
   try {
     if (pathname.startsWith('/api/')) {
@@ -574,6 +609,13 @@ async function handle(req, res, pathname = new URL(req.url || '/', 'http://local
       await readBody(req)
       const job = await mediaProcessing.enqueue(retryEpisodeId, { force: true })
       return sendJson(res, 202, { job })
+    }
+    if (req.method === 'GET' && pathname === '/api/suggestions') {
+      return sendJson(res, 200, await listSuggestions())
+    }
+    const suggestionId = idFromPath(pathname, /^\/api\/suggestions\/(\d+)$/)
+    if (req.method === 'PUT' && suggestionId !== null) {
+      return sendJson(res, 200, await updateSuggestion(suggestionId, await readBody(req)))
     }
     if (req.method === 'GET' && pathname === '/api/accounts') {
       return sendJson(res, 200, await listAccounts())

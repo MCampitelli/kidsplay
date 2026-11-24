@@ -22,6 +22,13 @@ export default defineConfig(({ mode, command }) => {
     build: {
       sourcemap: emitSourcemaps ? 'inline' : false,
       minify: !emitSourcemaps,
+      // Duas paginas: o app da TV (/) e a Area dos Pais (/pais/), instalavel no celular.
+      rollupOptions: {
+        input: {
+          main: path.resolve(__dirname, 'index.html'),
+          pais: path.resolve(__dirname, 'pais', 'index.html'),
+        },
+      },
     },
     plugins: [
       react(),

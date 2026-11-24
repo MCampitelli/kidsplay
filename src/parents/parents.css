@@ -1,0 +1,179 @@
+@import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --font-display: 'Fredoka One', cursive;
+  --font-body: 'Nunito', system-ui, sans-serif;
+  --color-ink: #1f1640;
+  --color-muted: #6b6584;
+  --color-brand: #1a1030;
+  --color-brand-soft: #efeaff;
+  --color-sun: #ffd93d;
+  --color-coral: #ff6b6b;
+  --color-mint: #22b07d;
+  --color-canvas: #f6f3fd;
+}
+
+/* Area dos Pais: mobile first, tema claro, respeita o entalhe/barra do celular. */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.safe-top {
+  padding-top: max(env(safe-area-inset-top), 0px);
+}
+
+.safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 1rem);
+}
+
+.card {
+  border-radius: 1.5rem;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(31, 22, 64, 0.06), 0 8px 24px rgba(31, 22, 64, 0.06);
+}
+
+.btn {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  padding: 0.75rem 1.4rem;
+  font-weight: 800;
+  transition: transform 0.15s ease, background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+}
+
+.btn-primary {
+  background: var(--color-brand);
+  color: #ffffff;
+}
+
+.btn-sun {
+  background: var(--color-sun);
+  color: var(--color-brand);
+}
+
+.btn-ghost {
+  background: var(--color-brand-soft);
+  color: var(--color-brand);
+}
+
+.btn-danger {
+  background: #ffe8e8;
+  color: #c93a3a;
+}
+
+.field {
+  width: 100%;
+  min-height: 52px;
+  border-radius: 1rem;
+  border: 2px solid #e4def5;
+  background: #ffffff;
+  padding: 0.8rem 1rem;
+  font-size: 1rem;
+  color: var(--color-ink);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.field:focus {
+  border-color: #7c5cff;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid #7c5cff;
+  outline-offset: 2px;
+}
+
+/* Interruptor (bloquear desenho / ligar limite). */
+.switch {
+  position: relative;
+  width: 52px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: #d9d3ea;
+  transition: background-color 0.2s ease;
+}
+
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 9999px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease;
+}
+
+.switch[aria-checked='true'] {
+  background: var(--color-coral);
+}
+
+.switch[aria-checked='true']::after {
+  transform: translateX(20px);
+}
+
+.switch-on[aria-checked='true'] {
+  background: var(--color-mint);
+}
+
+.live-dot {
+  position: relative;
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: var(--color-mint);
+}
+
+.live-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: var(--color-mint);
+  animation: live-pulse 1.6s ease-out infinite;
+}
+
+@keyframes live-pulse {
+  from {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  to {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot::after {
+    animation: none;
+  }
+}

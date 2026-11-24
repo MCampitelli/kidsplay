@@ -1,34 +1,39 @@
 import { useEffect, useState } from "react"
 import { PROFILE_STICKERS, type Profile } from "../types/profile"
 
+/** "Quem vai assistir?": os perfis sao criados e controlados na Area dos Pais (celular). */
 export function ProfileScreen({
   profiles,
   onLogin,
-  onManageProfiles,
+  onLogout,
 }: {
   profiles: Profile[]
   onLogin: (profile: Profile) => void
-  onManageProfiles: () => void
+  onLogout: () => void
 }) {
   const [selectedIndex, setSelectedIndex] = useState(0)
+  // O ultimo item da navegacao (indice = profiles.length) e o botao "Sair".
+  const logoutIndex = profiles.length
+  const parentsUrl = `${window.location.origin}/pais/`
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "ArrowUp") {
-        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : profiles.length - 1))
+        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : logoutIndex))
         event.preventDefault()
       } else if (event.key === "ArrowDown") {
-        setSelectedIndex((prev) => (prev < profiles.length - 1 ? prev + 1 : 0))
+        setSelectedIndex((prev) => (prev < logoutIndex ? prev + 1 : 0))
         event.preventDefault()
       } else if (event.key === "Enter") {
-        onLogin(profiles[selectedIndex])
+        if (selectedIndex === logoutIndex) onLogout()
+        else onLogin(profiles[selectedIndex])
         event.preventDefault()
       }
     }
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [selectedIndex, profiles])
+  }, [selectedIndex, profiles, logoutIndex, onLogin, onLogout])
 
   return (
     <div className="relative min-h-screen flex items-center px-8 sm:px-16 py-10">
@@ -37,8 +42,15 @@ export function ProfileScreen({
       <div className="relative z-10 flex w-full items-center gap-10">
         <section className="flex w-full max-w-md flex-col">
           <h1 className="text-4xl sm:text-5xl font-display text-white drop-shadow-lg mb-8">
-            Quem é você?
+            Quem vai assistir?
           </h1>
+
+          {profiles.length === 0 && (
+            <p className="mb-6 rounded-3xl bg-black/45 px-6 py-5 text-lg font-bold text-white">
+              Nenhum perfil ainda. Crie os perfis das crianças na Área dos Pais, pelo celular:
+              <span className="mt-2 block break-all text-[#FFD93D]">{parentsUrl}</span>
+            </p>
+          )}
 
           <div className="flex flex-col gap-4">
             {profiles.map((profile, index) => {
@@ -81,11 +93,12 @@ export function ProfileScreen({
 
           <button
             type="button"
-            onClick={onManageProfiles}
-            className="tv-pill mt-8 self-start"
+            onClick={onLogout}
+            onMouseEnter={() => setSelectedIndex(logoutIndex)}
+            className={`tv-pill mt-8 self-start ${selectedIndex === logoutIndex ? "tv-pill-active" : ""}`}
             data-tv-focusable
           >
-            ⚙ Gerenciar perfis
+            Sair da conta
           </button>
         </section>
 

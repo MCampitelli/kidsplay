@@ -1,18 +1,40 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import type { Profile } from "./types/profile"
 import type { Episode, Show } from "./types/catalog"
 import { profileService } from "./services/profileService"
 import { getSession, login, logout } from "./services/authService"
 import { apiFetch } from "./services/apiClient"
-import { AdminPanel } from "./components/AdminPanel"
+import { getScreenTime } from "./services/playbackService"
 import { Navbar } from "./components/Navbar"
 import { CredentialsScreen } from "./screens/CredentialsScreen"
 import { ProfileScreen } from "./screens/ProfileScreen"
 import { PlayerScreen } from "./screens/PlayerScreen"
 import { HomeScreen } from "./screens/HomeScreen"
 import { ShowEpisodesScreen } from "./screens/ShowEpisodesScreen"
+import { TimeUpScreen } from "./screens/TimeUpScreen"
 import { useFavoriteShows } from "./hooks/useFavoriteShows"
 import { useTvRemoteNavigation } from "./hooks/useTvRemoteNavigation"
+
+// Cada aparelho lembra o perfil em uso: recarregar o app volta direto para ele.
+const ACTIVE_PROFILE_KEY = "kidsplay-active-profile"
+
+function readActiveProfileId(): number | null {
+  try {
+    const value = Number(localStorage.getItem(ACTIVE_PROFILE_KEY))
+    return Number.isSafeInteger(value) && value > 0 ? value : null
+  } catch {
+    return null
+  }
+}
+
+function writeActiveProfileId(id: number | null) {
+  try {
+    if (id === null) localStorage.removeItem(ACTIVE_PROFILE_KEY)
+    else localStorage.setItem(ACTIVE_PROFILE_KEY, String(id))
+  } catch {
+    // armazenamento indisponivel (ex.: navegacao privada): so nao lembra o perfil
+  }
+}
 
 function getEpisodeVideoSrc(show: Show, episode: Episode) {
   if (!episode.file) return ""
@@ -22,7 +44,6 @@ function getEpisodeVideoSrc(show: Show, episode: Episode) {
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [showAdminPanel, setShowAdminPanel] = useState(false)
   const [currentUser, setCurrentUser] = useState<Profile | null>(null)
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [shows, setShows] = useState<Show[]>([])
@@ -34,40 +55,85 @@ export default function App() {
   } | null>(null)
   const [lastHomeCard, setLastHomeCard] = useState<string | null>(null)
   const [lastEpisodeId, setLastEpisodeId] = useState<number | null>(null)
+  // Limite diario definido na Area dos Pais: ao esgotar, a TV mostra "Hora de descansar".
+  const [timeUp, setTimeUp] = useState(false)
 
   const { favoriteShowIds, toggleFavorite } = useFavoriteShows(currentUser)
-  useTvRemoteNavigation(Boolean(currentUser) && !selectedEpisode)
+  useTvRemoteNavigation(Boolean(currentUser) && !selectedEpisode && !timeUp)
+
+  const enterProfile = useCallback((profile: Profile | null) => {
+    writeActiveProfileId(profile?.id ?? null)
+    setCurrentUser(profile)
+    setSelectedShow(null)
+    setSelectedEpisode(null)
+    setTimeUp(false)
+    setShows([])
+    setCatalogStatus("loading")
+  }, [])
 
   function handleLogout() {
     void logout().then(() => {
+      writeActiveProfileId(null)
       setIsAuthenticated(false)
-      setShowAdminPanel(false)
       setCurrentUser(null)
       setSelectedShow(null)
       setSelectedEpisode(null)
+      setTimeUp(false)
     }).catch((error: unknown) => {
       console.error("[KidsPlay] Falha ao encerrar a sessão.")
       window.alert(error instanceof Error ? error.message : "Não foi possível sair. Tente novamente.")
     })
   }
 
+  // Depois do login (ou ao restaurar a sessao): volta ao perfil deste aparelho,
+  // ou mostra "Quem vai assistir?".
+  function routeAfterAuthentication(profilesData: Profile[], { justLoggedIn }: { justLoggedIn: boolean }) {
+    setProfiles(profilesData)
+    setIsAuthenticated(true)
+    const stored = readActiveProfileId()
+    const storedProfile = profilesData.find((profile) => profile.id === stored) ?? null
+    enterProfile(storedProfile && !justLoggedIn ? storedProfile : null)
+  }
+
   useEffect(() => {
+    let cancelled = false
+    async function restoreSession() {
+      try {
+        const account = await getSession()
+        if (!account || cancelled) return
+        const profilesData = await profileService.getProfiles()
+        if (!cancelled) routeAfterAuthentication(profilesData, { justLoggedIn: false })
+      } catch (error) {
+        console.error("Error restoring session:", error)
+      }
+    }
+    void restoreSession()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Catalogo do perfil ativo: o servidor ja omite os desenhos bloqueados pelos pais.
+  const profileId = currentUser?.id ?? null
+  useEffect(() => {
+    if (profileId === null) return
     let cancelled = false
     let previousCatalog = ""
 
     async function loadCatalog() {
       try {
-        const showsRes = await apiFetch("/api/catalog", { cache: "no-store" })
+        const showsRes = await apiFetch(`/api/catalog?profileId=${profileId}`, { cache: "no-store" })
         if (!showsRes.ok) throw new Error(`Falha HTTP ${showsRes.status}`)
         const catalogText = await showsRes.text()
         if (cancelled) return
-        if (catalogText === previousCatalog) {
-          setCatalogStatus("ready")
-          return
+        if (catalogText !== previousCatalog) {
+          const catalog: Show[] = JSON.parse(catalogText)
+          previousCatalog = catalogText
+          setShows(catalog)
+          // Um desenho bloqueado enquanto aberto some da tela.
+          setSelectedShow((open) => (open && !catalog.some((show) => show.id === open.id) ? null : open))
         }
-        const catalog: Show[] = JSON.parse(catalogText)
-        previousCatalog = catalogText
-        setShows(catalog)
         setCatalogStatus("ready")
       } catch (error) {
         if (!cancelled) setCatalogStatus("error")
@@ -75,35 +141,36 @@ export default function App() {
       }
     }
 
-    async function restoreSession() {
+    async function checkScreenTime() {
       try {
-        const account = await getSession()
-        if (!account || cancelled) return
-        const profilesData = await profileService.getProfiles()
-        if (cancelled) return
-        setProfiles(profilesData)
-        setIsAuthenticated(true)
-        setShowAdminPanel(true)
-      } catch (error) {
-        console.error("Error restoring session:", error)
+        const time = await getScreenTime(profileId as number)
+        if (!cancelled) setTimeUp(time.remainingSeconds === 0)
+      } catch {
+        // sem resposta: nao bloqueia a crianca por falha de rede
       }
     }
 
     void loadCatalog()
-    void restoreSession()
+    void checkScreenTime()
     // 60s keeps a small production server comfortable with many TVs open;
     // returning to the tab/app also refreshes immediately.
-    const catalogRefreshTimer = window.setInterval(() => void loadCatalog(), 60_000)
+    const refreshTimer = window.setInterval(() => {
+      void loadCatalog()
+      void checkScreenTime()
+    }, 60_000)
     const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") void loadCatalog()
+      if (document.visibilityState === "visible") {
+        void loadCatalog()
+        void checkScreenTime()
+      }
     }
     document.addEventListener("visibilitychange", refreshWhenVisible)
     return () => {
       cancelled = true
-      clearInterval(catalogRefreshTimer)
+      clearInterval(refreshTimer)
       document.removeEventListener("visibilitychange", refreshWhenVisible)
     }
-  }, [])
+  }, [profileId])
 
   if (!isAuthenticated) {
     return (
@@ -111,24 +178,8 @@ export default function App() {
         onLogin={async (email, password) => {
           await login(email, password)
           const profilesData = await profileService.getProfiles()
-          setProfiles(profilesData)
-          setIsAuthenticated(true)
-          setShowAdminPanel(true)
+          routeAfterAuthentication(profilesData, { justLoggedIn: true })
         }}
-      />
-    )
-  }
-
-  if (showAdminPanel) {
-    return (
-      <AdminPanel
-        profiles={profiles}
-        onProfilesChange={setProfiles}
-        onEnterProfile={(profile) => {
-          setCurrentUser(profile)
-          setShowAdminPanel(false)
-        }}
-        onLogout={handleLogout}
       />
     )
   }
@@ -137,8 +188,17 @@ export default function App() {
     return (
       <ProfileScreen
         profiles={profiles}
-        onLogin={setCurrentUser}
-        onManageProfiles={() => setShowAdminPanel(true)}
+        onLogin={(profile) => enterProfile(profile)}
+        onLogout={handleLogout}
+      />
+    )
+  }
+
+  if (timeUp) {
+    return (
+      <TimeUpScreen
+        profile={currentUser}
+        onSwitchProfile={() => enterProfile(null)}
       />
     )
   }
@@ -146,6 +206,7 @@ export default function App() {
   if (selectedEpisode) {
     return (
       <PlayerScreen
+        profileId={currentUser.id}
         show={selectedEpisode.show}
         episode={selectedEpisode.episode}
         videoSrc={getEpisodeVideoSrc(
@@ -160,6 +221,10 @@ export default function App() {
         onEpisodeChange={(episode) =>
           setSelectedEpisode({ show: selectedEpisode.show, episode })
         }
+        onTimeUp={() => {
+          setSelectedEpisode(null)
+          setTimeUp(true)
+        }}
       />
     )
   }
@@ -171,11 +236,7 @@ export default function App() {
         <Navbar
           currentUser={currentUser}
           onLogout={handleLogout}
-          onSwitchProfile={() => {
-            setCurrentUser(null)
-            setSelectedShow(null)
-            setSelectedEpisode(null)
-          }}
+          onSwitchProfile={() => enterProfile(null)}
         />
         {selectedShow ? (
           <ShowEpisodesScreen

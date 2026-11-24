@@ -6,7 +6,8 @@ import { createApiServer } from '../build/backend/api/httpServer.js'
 import { hashPassword } from './passwords.mjs'
 
 export async function createTestApi({ legacyAdmin = false } = {}) {
-  const config = readConfig(loadEnvironment())
+  // Os testes validam as rotas locais de midia; ignora o storage (R2) do .env de quem roda.
+  const config = { ...readConfig(loadEnvironment()), mediaBaseUrl: undefined }
   const pool = createDatabasePool(config)
   const users = []
   const app = createApiServer(config, pool, legacyAdmin)

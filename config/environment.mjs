@@ -56,6 +56,7 @@ export function readConfig(env = loadEnvironment()) {
   }
   const apiTarget = readApiTarget(env)
   const mediaBaseUrl = readMediaBaseUrl(env)
+  const timeZone = readTimeZone(env)
   const database = env.KIDSPLAY_DB_NAME?.trim() || 'kidsplay_db'
   const host = env.KIDSPLAY_DB_HOST?.trim() || '127.0.0.1'
   const ssl = flag(env.KIDSPLAY_DB_SSL, false, 'KIDSPLAY_DB_SSL')
@@ -75,7 +76,19 @@ export function readConfig(env = loadEnvironment()) {
     adminPort: port(env.KIDSPLAY_CATALOG_ADMIN_PORT, 8787, 'KIDSPLAY_CATALOG_ADMIN_PORT'),
     apiTarget,
     mediaBaseUrl,
+    timeZone,
   }
+}
+
+// Fuso da familia: o limite de tempo de tela diario recomeca a meia-noite deste fuso.
+export function readTimeZone(env) {
+  const value = env.KIDSPLAY_TIMEZONE?.trim() || 'America/Sao_Paulo'
+  try {
+    new Intl.DateTimeFormat('en-CA', { timeZone: value })
+  } catch {
+    throw new Error('KIDSPLAY_TIMEZONE deve ser um fuso IANA válido (ex.: America/Sao_Paulo).')
+  }
+  return value
 }
 
 // Origem publica das midias (ex.: URL r2.dev). Vazio = servir /hls, /thumbnails e /files localmente.

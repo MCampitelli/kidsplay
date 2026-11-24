@@ -250,7 +250,8 @@ input:focus-visible,
 }
 
 .tv-pill:hover,
-.tv-pill:focus {
+.tv-pill:focus,
+.tv-pill-active {
   background: #FFD93D;
   color: #2D2D2D;
   transform: scale(1.05);

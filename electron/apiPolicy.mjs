@@ -15,6 +15,8 @@ const routes = [
   [/^\/api\/catalog\/episodes\/\d+$/, new Set(['PUT'])],
   [/^\/api\/accounts$/, new Set(['GET', 'POST'])],
   [/^\/api\/accounts\/\d+$/, new Set(['PUT'])],
+  [/^\/api\/suggestions$/, new Set(['GET'])],
+  [/^\/api\/suggestions\/\d+$/, new Set(['PUT'])],
   [/^\/api\/media-processing\/jobs$/, new Set(['GET'])],
   [/^\/api\/media-processing\/pending$/, new Set(['POST'])],
   [/^\/api\/media-processing\/episodes\/\d+(?:\/retry)?$/, new Set(['POST'])],

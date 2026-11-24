@@ -1,0 +1,17 @@
+{
+  "name": "Área dos Pais · KidsPlay",
+  "short_name": "Área dos Pais",
+  "description": "Acompanhe e controle o que as crianças assistem no KidsPlay.",
+  "lang": "pt-BR",
+  "start_url": "/pais/",
+  "scope": "/pais/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1a1030",
+  "theme_color": "#1a1030",
+  "icons": [
+    { "src": "/pais/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/pais/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/pais/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

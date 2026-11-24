@@ -11,6 +11,7 @@ import { readConfig } from '../config/environment.mjs'
 import { createRequestPolicy } from './requestPolicy.mjs'
 import { verifyPassword } from './passwords.mjs'
 import { loadPublicTitleTags, type CatalogTag } from './catalogTags.mjs'
+import { createFamilyApi } from './familyApi.js'
 
 const SESSION_COOKIE = 'kidsplay_session'
 const SESSION_DAYS = 14
@@ -289,6 +290,14 @@ export function createApi(config: ApiConfig, pool: Pool) {
     return { id: String(user.id), name: user.name, email: user.email, role: user.role }
   }
 
+  const family = createFamilyApi({
+    pool,
+    json,
+    readJsonBody,
+    timeZone: config.timeZone,
+    loadTitles: async () => (await loadPlaybackCatalog()).map(({ id, title, image }) => ({ id, title, image })),
+  })
+
   async function handle(
     req: import('node:http').IncomingMessage,
     res: import('node:http').ServerResponse,
@@ -312,7 +321,19 @@ export function createApi(config: ApiConfig, pool: Pool) {
     }
     if (pathname === '/api/catalog' && req.method === 'GET') {
       try {
-        return json(res, 200, await loadPlaybackCatalog())
+        // O catalogo exige login e, com ?profileId, omite os desenhos bloqueados pelos pais.
+        const user = await authenticatedUser(req)
+        if (!user) return json(res, 401, { error: 'Sessão não autenticada.' })
+        const catalog = await loadPlaybackCatalog()
+        const profileId = Number(new URL(req.url ?? '/', 'http://localhost').searchParams.get('profileId'))
+        if (!Number.isSafeInteger(profileId) || profileId <= 0) return json(res, 200, catalog)
+        const [owned] = await pool.query(
+          "SELECT id FROM profiles WHERE id = ? AND owner_user_id = ? AND status = 'active' LIMIT 1",
+          [profileId, user.id],
+        )
+        if (!owned) return json(res, 404, { error: 'Perfil não encontrado.' })
+        const blocked = await family.blockedTitleIds(profileId)
+        return json(res, 200, catalog.filter((title) => !blocked.has(title.id)))
       } catch {
         console.error('[kidsplay-api] catalog request failed')
         return json(res, 503, { error: 'Não foi possível carregar o catálogo do banco de dados.' })
@@ -491,6 +512,25 @@ export function createApi(config: ApiConfig, pool: Pool) {
         const statusCode = (error as { statusCode?: number }).statusCode
         if (statusCode) return json(res, statusCode, { error: 'Requisição inválida.' })
         console.error('[kidsplay-api] profile request failed')
+        return json(res, 503, { error: 'Não foi possível processar a requisição no MariaDB.' })
+      }
+    }
+
+    if (
+      pathname === '/api/playback/progress' ||
+      pathname.startsWith('/api/family/') ||
+      /^\/api\/profiles\/\d+\/screen-time$/.test(pathname)
+    ) {
+      if (!pool) return json(res, 503, { error: 'Configure a conexão MariaDB no .env local.' })
+      try {
+        const user = await authenticatedUser(req)
+        if (!user) return json(res, 401, { error: 'Sessão não autenticada.' })
+        if (await family.handle(pathname, req, res, user.id)) return
+      } catch (error) {
+        if (error instanceof SyntaxError) return json(res, 400, { error: 'Corpo JSON inválido.' })
+        const statusCode = (error as { statusCode?: number }).statusCode
+        if (statusCode) return json(res, statusCode, { error: 'Requisição inválida.' })
+        console.error('[kidsplay-api] family request failed')
         return json(res, 503, { error: 'Não foi possível processar a requisição no MariaDB.' })
       }
     }

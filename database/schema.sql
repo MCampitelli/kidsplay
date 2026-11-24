@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `password_hash` VARCHAR(255) NOT NULL COMMENT 'Backend-generated password_hash; never store plaintext passwords',
   `status` ENUM('pending', 'active', 'suspended', 'deleted') NOT NULL DEFAULT 'pending',
   `role` ENUM('user', 'admin') NOT NULL DEFAULT 'user',
+  `must_change_password` TINYINT(1) NOT NULL DEFAULT 0,
   `email_verified_at` DATETIME(3) NULL,
   `last_login_at` DATETIME(3) NULL,
   `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -71,6 +72,7 @@ CREATE TABLE IF NOT EXISTS `profile_preferences` (
   `subtitles_enabled` TINYINT(1) NOT NULL DEFAULT 0,
   `subtitle_language` VARCHAR(16) NULL,
   `audio_language` VARCHAR(16) NOT NULL DEFAULT 'pt-BR',
+  `daily_limit_minutes` SMALLINT UNSIGNED NULL,
   `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`profile_id`),
@@ -240,6 +242,42 @@ CREATE TABLE IF NOT EXISTS `playback_events` (
   KEY `idx_playback_events_type_time` (`event_type`, `occurred_at`),
   CONSTRAINT `fk_playback_events_profile` FOREIGN KEY (`profile_id`) REFERENCES `profiles` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_playback_events_episode` FOREIGN KEY (`episode_id`) REFERENCES `episodes` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `profile_blocked_titles` (
+  `profile_id` BIGINT UNSIGNED NOT NULL,
+  `title_id` BIGINT UNSIGNED NOT NULL,
+  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`profile_id`, `title_id`),
+  KEY `idx_profile_blocked_titles_title` (`title_id`),
+  CONSTRAINT `fk_profile_blocked_titles_profile` FOREIGN KEY (`profile_id`) REFERENCES `profiles` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_profile_blocked_titles_title` FOREIGN KEY (`title_id`) REFERENCES `titles` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `profile_daily_usage` (
+  `profile_id` BIGINT UNSIGNED NOT NULL,
+  `usage_date` DATE NOT NULL,
+  `watched_seconds` INT UNSIGNED NOT NULL DEFAULT 0,
+  `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`profile_id`, `usage_date`),
+  CONSTRAINT `fk_profile_daily_usage_profile` FOREIGN KEY (`profile_id`) REFERENCES `profiles` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `title_suggestions` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id` BIGINT UNSIGNED NOT NULL,
+  `profile_id` BIGINT UNSIGNED NULL,
+  `title_name` VARCHAR(160) NOT NULL,
+  `note` VARCHAR(500) NULL,
+  `status` ENUM('pending', 'added', 'declined') NOT NULL DEFAULT 'pending',
+  `admin_note` VARCHAR(500) NULL,
+  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  KEY `idx_title_suggestions_status_created` (`status`, `created_at`),
+  KEY `idx_title_suggestions_user_created` (`user_id`, `created_at`),
+  CONSTRAINT `fk_title_suggestions_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_title_suggestions_profile` FOREIGN KEY (`profile_id`) REFERENCES `profiles` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `app_settings` (

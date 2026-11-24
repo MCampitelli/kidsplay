@@ -9,16 +9,18 @@ Aplicação de streaming infantil otimizada para navegação em TV.
 - **Fileiras por categoria**: a tela inicial mostra uma fileira de capas por tag ativa, seguida da fileira **Desenhos** com todos os títulos publicados
 - **Tela do desenho**: capa, descrição, botão de favoritar e grade de episódios
 - **Player para TV**: HLS com fallback para MP4, próximo episódio automático e controles que somem durante a reprodução
+- **Área dos Pais** (`/pais/`): app web para celular, instalável na tela inicial, com perfis, bloqueio de desenhos, limite diário, histórico, "assistindo agora" e sugestões de desenhos
 - **Cores Vibrantes**: Paleta infantil mantida (coral, laranja, amarelo, turquesa, verde, roxo)
 
 ## 📂 Estrutura de Arquivos
 
 ```
 src/
-├── App.tsx              # estado global e roteamento entre telas
+├── App.tsx              # estado global e roteamento entre telas (TV)
 ├── screens/             # CredentialsScreen, ProfileScreen, HomeScreen,
-│                        # ShowEpisodesScreen, PlayerScreen
-├── components/          # AdminPanel, Navbar, EpisodeCard, diálogos
+│                        # ShowEpisodesScreen, PlayerScreen, TimeUpScreen
+├── components/          # Navbar, EpisodeCard, PlayerIcons
+├── parents/             # Área dos Pais (pais/index.html → /pais/), mobile first
 ├── hooks/               # useFavoriteShows, useTvRemoteNavigation
 ├── lib/tvNavigation.ts  # navegação espacial por setas (controle remoto)
 ├── services/            # cliente da API, autenticação e perfis
@@ -37,15 +39,19 @@ public/data/profiles.json  # origem dos perfis para o primeiro seed
 - Use o e-mail e a senha da conta local criada pelo seed MariaDB.
 - A senha é verificada no backend e a sessão usa cookie `HttpOnly`; credenciais MariaDB não vão para o navegador.
 
-### Administração de perfis
-- Após o login, uma tela de administração permite criar, editar e excluir perfis infantis
-- **Excluir é definitivo**: o perfil é apagado do MariaDB junto com os dados ligados a ele (preferências, favoritos e histórico no banco), sem opção de recuperação. É intencional, por se tratar de dados de crianças. Os favoritos guardados no `localStorage` do aparelho não são limpos.
-- **Continuar**: vai para a tela de seleção de perfil (fluxo infantil, inalterado)
+### Área dos Pais (celular)
+- Endereço: `/pais/` (ex.: `http://192.168.1.9:8443/pais/` na rede local). Mesma conta do KidsPlay. Pode ser **salva na tela inicial**: botão **Instalar** no Android/Chrome; no iPhone, Safari → Compartilhar → **Adicionar à Tela de Início**.
+- **Perfis**: criar, editar (nome e figurinha) e excluir. **Excluir é definitivo**: o perfil é apagado do MariaDB junto com preferências, histórico, tempo de tela e bloqueios, sem opção de recuperação. É intencional, por se tratar de dados de crianças.
+- **Agora**: o que a criança está assistindo, em tempo real (atualiza a cada 15 s; some 45 s depois que o vídeo para).
+- **Tempo**: limite diário (atalhos de 30 min a 2 h ou valor livre, até 10 h). Conta só o tempo com o vídeo tocando e recomeça à meia-noite do fuso `KIDSPLAY_TIMEZONE` (padrão `America/Sao_Paulo`). Ao esgotar, a TV mostra **Hora de descansar**. Gráfico dos últimos 7 dias.
+- **Desenhos**: bloquear por perfil; o servidor omite o desenho do catálogo daquele perfil na TV.
+- **Histórico**: episódios por dia, horário, até onde assistiu e se terminou.
+- **Sugerir desenho**: o pedido aparece na aba **Sugestões** do Controle; o status e a resposta voltam para a família.
 
-### Tela de seleção de perfil
-- **Setas Cima/Baixo**: Navegar entre crianças (a lista é vertical e circular)
+### Tela de seleção de perfil (TV)
+- **Setas Cima/Baixo**: Navegar entre crianças e o botão **Sair da conta** (a lista é circular)
 - **Enter**: Selecionar criança e entrar
-- **⚙ Gerenciar perfis**: volta para a administração sem precisar sair/logar novamente
+- Cada aparelho lembra o perfil em uso: recarregar o app volta direto para ele. Os perfis são criados na Área dos Pais.
 
 ### Tela Principal
 - **Setas Esquerda/Direita**: Navegar entre capas da mesma fileira
@@ -179,7 +185,7 @@ O teste de integração exige MariaDB configurado e migrações aplicadas. Ele i
 ## 🎨 Personalização
 
 ### Adicionar/editar/remover perfis
-Use a tela de administração (login do responsável → **Gerenciar perfis**). A exclusão de perfil é definitiva (veja acima). `public/data/profiles.json` é somente a origem dos nomes para o primeiro seed; depois disso, a API persiste os perfis no MariaDB.
+Use a **Área dos Pais** (`/pais/`) no celular. A exclusão de perfil é definitiva (veja acima). `public/data/profiles.json` é somente a origem dos nomes para o primeiro seed; depois disso, a API persiste os perfis no MariaDB.
 
 ### Adicionar Novos Desenhos
 1. No Controle, cadastre o título na aba **Títulos**.

@@ -2,6 +2,7 @@ const state = {
   catalog: [],
   tags: [],
   accounts: [],
+  suggestions: [],
   tab: 'accounts',
   titleId: null,
   seasonId: null,
@@ -9,7 +10,7 @@ const state = {
   jobs: [],
   workerAvailable: false,
   clearMediaPathEpisodeId: null,
-  edit: { account: 'new', title: 'new', tag: 'new', season: null, episode: null, asset: null },
+  edit: { account: 'new', title: 'new', tag: 'new', season: null, episode: null, asset: null, suggestion: null },
   slugTouched: false,
 }
 
@@ -385,6 +386,48 @@ function formatSize(bytes) {
   return `${(bytes / 1_048_576).toFixed(1)} MB`
 }
 
+const suggestionStatusLabels = { pending: 'Aguardando', added: 'Adicionado', declined: 'Recusado' }
+
+// Sugestoes de desenhos enviadas pelos pais na Area dos Pais; a resposta aparece para eles.
+function renderSuggestions() {
+  const selected = state.suggestions.find((suggestion) => suggestion.id === state.edit.suggestion) || null
+  const pending = state.suggestions.filter((suggestion) => suggestion.status === 'pending').length
+  const items = state.suggestions.map((suggestion) => recordRow({
+    id: suggestion.id,
+    type: 'suggestion',
+    title: suggestion.titleName,
+    detail: `${suggestion.accountName}${suggestion.profileName ? ' · para ' + suggestion.profileName : ''} · ${new Date(suggestion.createdAt).toLocaleDateString('pt-BR')}`,
+    status: suggestionStatusLabels[suggestion.status],
+    selected: selected?.id === suggestion.id,
+  }))
+  const form = selected
+    ? `<form data-form="suggestion">
+        <div class="inline-note">Pedido de <strong>${escapeHtml(selected.accountName)}</strong> (${escapeHtml(selected.accountEmail)})${selected.profileName ? ` para <strong>${escapeHtml(selected.profileName)}</strong>` : ''}. O status e a resposta aparecem para a família na Área dos Pais.</div>
+        <div class="form-grid">
+          <div class="field full"><label>Desenho sugerido</label><input readonly value="${escapeHtml(selected.titleName)}" /></div>
+          ${selected.note ? `<div class="field full"><label>Comentário da família</label><textarea readonly rows="3">${escapeHtml(selected.note)}</textarea></div>` : ''}
+          <div class="field"><label for="suggestion-status">Status</label><select id="suggestion-status" name="status">
+            ${Object.entries(suggestionStatusLabels).map(([value, label]) => `<option value="${value}" ${selected.status === value ? 'selected' : ''}>${label}</option>`).join('')}
+          </select></div>
+          <div class="field full"><label for="suggestion-note">Resposta para a família</label><textarea id="suggestion-note" name="adminNote" rows="3" maxlength="500" placeholder="Ex.: adicionado na categoria Aventura!">${escapeHtml(selected.adminNote)}</textarea></div>
+        </div>${saveButton('Salvar resposta')}
+      </form>`
+    : '<div class="empty-state">Selecione uma sugestão para responder.</div>'
+
+  workspace.innerHTML = `<div class="workspace-grid">
+    <section class="record-column"><div class="section-heading"><div><h2>Sugestões</h2><p>${pending} aguardando · ${state.suggestions.length} no total</p></div></div>${recordList(items, 'Nenhuma sugestão recebida ainda.')}</section>
+    <section class="editor-column">${editorHeading('sugestão', 'Pedidos de desenhos feitos pelos pais.', Boolean(selected))}${form}</section>
+  </div>`
+}
+
+function updateSuggestionBadge() {
+  const badge = document.querySelector('#suggestions-pending')
+  if (!badge) return
+  const pending = state.suggestions.filter((suggestion) => suggestion.status === 'pending').length
+  badge.textContent = pending ? String(pending) : ''
+  badge.hidden = !pending
+}
+
 function render() {
   document.querySelectorAll('[data-tab]').forEach((button) => button.classList.toggle('is-active', button.dataset.tab === state.tab))
   if (state.tab === 'accounts') renderAccounts()
@@ -393,6 +436,8 @@ function render() {
   if (state.tab === 'seasons') renderSeasons()
   if (state.tab === 'episodes') renderEpisodes()
   if (state.tab === 'assets') renderAssets()
+  if (state.tab === 'suggestions') renderSuggestions()
+  updateSuggestionBadge()
   updateSelectedTags()
 }
 
@@ -428,8 +473,13 @@ async function refreshAccounts() {
   render()
 }
 
+async function refreshSuggestions() {
+  state.suggestions = await api('/api/suggestions')
+  render()
+}
+
 async function refreshAll() {
-  await Promise.all([refreshCatalog(), refreshAccounts(), refreshJobs()])
+  await Promise.all([refreshCatalog(), refreshAccounts(), refreshJobs(), refreshSuggestions()])
 }
 
 function selectedFormData(form) {
@@ -447,6 +497,7 @@ async function saveForm(form) {
     season: '/api/catalog/seasons',
     episode: '/api/catalog/episodes',
     asset: '/api/media-processing/episodes',
+    suggestion: '/api/suggestions',
   }
   let route = routes[type]
   let method = 'POST'
@@ -475,6 +526,7 @@ async function saveForm(form) {
     route += `/${Number(values.episodeId)}`
   }
   if (type === 'account') payload = { ...values }
+  if (type === 'suggestion') payload = { status: values.status, adminNote: values.adminNote }
   if (editingId && type !== 'asset') {
     method = 'PUT'
     route += `/${editingId}`
@@ -519,6 +571,7 @@ async function saveForm(form) {
       if (type === 'episode') state.edit.episode = null
     }
     if (type === 'account') await refreshAccounts()
+    else if (type === 'suggestion') await refreshSuggestions()
     else await refreshCatalog()
     if (type === 'asset') await refreshJobs()
     showNotice(type === 'asset' ? 'MP4 salvo; o processamento continuará em segundo plano.' : `${type === 'account' && editingId ? 'Conta atualizada' : 'Cadastro salvo'} com sucesso.`)
@@ -589,6 +642,8 @@ document.addEventListener('click', async (event) => {
   const id = Number(row.dataset.id)
   if (row.dataset.edit === 'account') {
     state.tab = 'accounts'; state.edit.account = id
+  } else if (row.dataset.edit === 'suggestion') {
+    state.tab = 'suggestions'; state.edit.suggestion = id
   } else if (row.dataset.edit === 'tag') {
     state.tab = 'tags'; state.edit.tag = id
   } else if (row.dataset.edit === 'title') {

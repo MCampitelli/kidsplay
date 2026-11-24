@@ -64,7 +64,8 @@ test('API independente: autenticação, perfis, autorização e isolamento real 
   })
 
   await t.test('catálogo mantém contrato do streaming e não divulga credenciais', async () => {
-    const response = await request('/api/catalog', { cookie: '' })
+    assert.equal((await request('/api/catalog', { cookie: '' })).status, 401)
+    const response = await request('/api/catalog')
     assert.equal(response.status, 200)
     const catalog = await response.json()
     assert.ok(Array.isArray(catalog))
